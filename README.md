@@ -26,7 +26,7 @@ Unit tests can then be run by executing `make test`
 
 ## Quickstart
 
-``` cpp
+```cpp
 // Create the input
 std::string input = "{ \"hello\": \"world\" }";
 
