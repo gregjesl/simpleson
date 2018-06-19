@@ -1,3 +1,5 @@
+[![Build status](https://ci.appveyor.com/api/projects/status/h9avws048watkvnr?svg=true)](https://ci.appveyor.com/project/gregjesl/simpleson)
+
 # simpleson
 Lightweight C++ JSON parser &amp; serializer that is C++98 compatible with no dependencies
 
