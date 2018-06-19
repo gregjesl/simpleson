@@ -26,6 +26,26 @@ Unit tests can then be run by executing `make test`
 
 ## Quickstart
 
+``` cpp
+// Create the input
+std::string input = "{ \"hello\": \"world\" }";
+
+// Parse the input
+json::jobject result = json::jobject::parse(input);
+
+// Get a value
+std::string value = (std::string)result.get_entry("hello").value
+
+// Add entry
+json::key_value_pair item;
+item.key = "new_key";
+item.value = json::jvalue(123.4);
+result.push_back(item);
+
+// Serialize the new object
+std::string serial = (std::string)result;
+```
+
 ## Using simpleson
 
 The namespace of simpleson is simply `json`.  JSON objects can be parsed by calling `json::jobject::parse()`, which returns a `jobject`.  The `jobject` class is simply an extension of a vector of [key-value pairs](#key-value-pairs).  Useful methods of `jobject` include:
