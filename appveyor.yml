@@ -14,20 +14,21 @@ for:
   - 
     matrix:
       only:
-        - configuration: Release
-    build_script:
-      - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=98
-      - cmake --build _builds --config Release
-    test_script:
-      - ps: cd _builds
-      - ctest -VV -C Release
+        - configuration: Debug
+    environment:
+      config: Debug
+
   - 
     matrix:
       only:
-        - configuration: Debug
-    build_script:
-        - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_STANDARD=98
-        - cmake --build _builds --config Debug
-    test_script:
-      - ps: cd _builds
-      - ctest -VV -C Debug
+        - configuration: Release
+    environment:
+      config: Release
+
+build_script:
+  - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=%configuration% -DCMAKE_CXX_STANDARD=98
+  - cmake --build _builds --config %configuration%
+
+test_script:
+  - ps: cd _builds
+  - ctest -VV -C %configuration%
