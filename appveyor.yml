@@ -12,6 +12,12 @@ environment:
     - GENERATOR: "Visual Studio 12 Win64"
       CONFIG: Release
 
+    - GENERATOR: "ubuntu"
+      CONFIG: Debug
+
+    - GENERATOR: "ubuntu"
+      CONFIG: Release
+
 build_script:
   - cmake "-G%GENERATOR%" -H. -B_builds
   - cmake --build _builds --config "%CONFIG%"
