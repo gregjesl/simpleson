@@ -1,6 +1,6 @@
 image:
-- Ubuntu
 - Visual Studio 2017
+- Ubuntu
 
 platform:
   - x86
@@ -16,8 +16,11 @@ for:
       only:
         - configuration: Release
     build_script:
-        - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=Release
-        - cmake --build _builds
+      - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=Release
+      - cmake --build _builds
+    test_script:
+      - ps: cd _builds
+      - ctest -VV -C Release
   - 
     matrix:
       only:
@@ -25,7 +28,6 @@ for:
     build_script:
         - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=Debug
         - cmake --build _builds 
-
-test_script:
-  - ps: cd _builds
-  - ctest -VV
+    test_script:
+      - ps: cd _builds
+      - ctest -VV -C Debug
