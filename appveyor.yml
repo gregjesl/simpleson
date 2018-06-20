@@ -11,7 +11,7 @@ configuration:
 - Release
 
 build_script:
-  - cmake "-G%GENERATOR%" -H. -B_builds
+  - cmake -H. -B_builds
   - cmake --build _builds --config "%CONFIG%"
 
 test_script:
