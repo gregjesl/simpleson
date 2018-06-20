@@ -26,9 +26,9 @@ for:
       config: Release
 
 build_script:
-  - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=%configuration% -DCMAKE_CXX_STANDARD=98
-  - cmake --build _builds --config %configuration%
+  - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=%config% -DCMAKE_CXX_STANDARD=98
+  - cmake --build _builds --config %config%
 
 test_script:
   - ps: cd _builds
-  - ctest -VV -C %configuration%
+  - ctest -VV -C %config%
