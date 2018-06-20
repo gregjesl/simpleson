@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <cstdio>
 #include <stdexcept>
 
 #define NUMBER_TO_STRING_BUFFER_LENGTH 100
@@ -28,23 +29,23 @@ namespace json
 		{
 		public:
 			// To basic type
-			operator int() { int result; sscanf(string.c_str(), "%i", &result); return result; }
-			operator unsigned int() { unsigned int result; sscanf(string.c_str(), "%u", &result); return result; }
-			operator long() { long result; sscanf(string.c_str(), "%li", &result); return result; }
-			operator unsigned long() { unsigned long result; sscanf(string.c_str(), "%lu", &result); return result; }
-			operator char() { char result; sscanf(string.c_str(), "%c", &result); return result; }
-			operator double() { double result; sscanf(string.c_str(), "%lf", &result); return result; }
-			operator float() { float result; sscanf(string.c_str(), "%f", &result); return result; }
+			operator int() { int result; std::sscanf(string.c_str(), "%i", &result); return result; }
+			operator unsigned int() { unsigned int result; std::sscanf(string.c_str(), "%u", &result); return result; }
+			operator long() { long result; std::sscanf(string.c_str(), "%li", &result); return result; }
+			operator unsigned long() { unsigned long result; std::sscanf(string.c_str(), "%lu", &result); return result; }
+			operator char() { char result; std::sscanf(string.c_str(), "%c", &result); return result; }
+			operator double() { double result; std::sscanf(string.c_str(), "%lf", &result); return result; }
+			operator float() { float result; std::sscanf(string.c_str(), "%f", &result); return result; }
 			operator std::string() { return this->string; }
 
 			// From basic type
-			istringnumber & istringnumber::operator=(const int input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; sprintf(cstr, "%i", input); this->string = std::string(cstr); }
-			istringnumber & istringnumber::operator=(const unsigned int input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; sprintf(cstr, "%u", input); this->string = std::string(cstr); }
-			istringnumber & istringnumber::operator=(const long input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; sprintf(cstr, "%li", input); this->string = std::string(cstr); }
-			istringnumber & istringnumber::operator=(const unsigned long input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; sprintf(cstr, "%lu", input); this->string = std::string(cstr); }
-			istringnumber & istringnumber::operator=(const char input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; sprintf(cstr, "%c", input); this->string = std::string(cstr); }
-			istringnumber & istringnumber::operator=(const double input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; sprintf(cstr, "%lf", input); this->string = std::string(cstr); }
-			istringnumber & istringnumber::operator=(const float input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; sprintf(cstr, "%f", input); this->string = std::string(cstr); }
+			istringnumber & istringnumber::operator=(const int input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%i", input); string = std::string(cstr); }
+			istringnumber & istringnumber::operator=(const unsigned int input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%u", input); string = std::string(cstr); }
+			istringnumber & istringnumber::operator=(const long input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%li", input); string = std::string(cstr); }
+			istringnumber & istringnumber::operator=(const unsigned long input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%lu", input); string = std::string(cstr); }
+			istringnumber & istringnumber::operator=(const char input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%c", input); string = std::string(cstr); }
+			istringnumber & istringnumber::operator=(const double input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%lf", input); string = std::string(cstr); }
+			istringnumber & istringnumber::operator=(const float input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%f", input); string = std::string(cstr); }
 		};
 	}
 
@@ -71,36 +72,78 @@ namespace json
 		operator std::vector<int>()
 		{
 			std::vector<int> result;
+			int value;
+			char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
+
 			for (size_t i = 0; i < this->size(); i++)
 			{
-				result.push_back(std::stoi(this->at(i)));
+				std::sscanf(buffer, "%i", this->at(i));
+				result.push_back(value);
+			}
+			return result;
+		}
+		operator std::vector<unsigned int>()
+		{
+			std::vector<unsigned int> result;
+			unsigned int value;
+			char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
+
+			for (size_t i = 0; i < this->size(); i++)
+			{
+				std::sscanf(buffer, "%u", this->at(i));
+				result.push_back(value);
 			}
 			return result;
 		}
 		operator std::vector<long>()
 		{
 			std::vector<long> result;
+			long value;
+			char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
+
 			for (size_t i = 0; i < this->size(); i++)
 			{
-				result.push_back(std::stol(this->at(i)));
+				std::sscanf(buffer, "%li", this->at(i));
+				result.push_back(value);
+			}
+			return result;
+		}
+		operator std::vector<unsigned long>()
+		{
+			std::vector<unsigned long> result;
+			unsigned long value;
+			char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
+
+			for (size_t i = 0; i < this->size(); i++)
+			{
+				std::sscanf(buffer, "%lu", this->at(i));
+				result.push_back(value);
 			}
 			return result;
 		}
 		operator std::vector<double>()
 		{
 			std::vector<double> result;
+			double value;
+			char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
+
 			for (size_t i = 0; i < this->size(); i++)
 			{
-				result.push_back(std::stod(this->at(i)));
+				std::sscanf(buffer, "%lf", this->at(i));
+				result.push_back(value);
 			}
 			return result;
 		}
 		operator std::vector<float>()
 		{
 			std::vector<float> result;
+			float value;
+			char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
+
 			for (size_t i = 0; i < this->size(); i++)
 			{
-				result.push_back(std::stof(this->at(i)));
+				std::sscanf(buffer, "%f", this->at(i));
+				result.push_back(value);
 			}
 			return result;
 		}
@@ -150,7 +193,7 @@ namespace json
 			{
 				return jarray::parse(this->string);
 			}
-			throw std::bad_cast();
+			throw std::invalid_argument("RHS was not an array");
 		}
 		inline jtype::jtype get_type(void) { return this->type; }
 		inline bool is_null(void) { return this->type == jtype::jnull; }
