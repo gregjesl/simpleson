@@ -27,7 +27,7 @@ for:
         - configuration: Debug
     build_script:
         - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_STANDARD=98
-        - cmake --build _builds --config Release
+        - cmake --build _builds --config Debug
     test_script:
       - ps: cd _builds
       - ctest -VV -C Debug
