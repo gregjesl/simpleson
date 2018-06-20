@@ -1,22 +1,14 @@
-environment:
-  matrix:
-    - GENERATOR: "Visual Studio 12"
-      CONFIG: Debug
+image:
+- Ubuntu
+- Visual Studio 2017
 
-    - GENERATOR: "Visual Studio 12"
-      CONFIG: Release
-
-    - GENERATOR: "Visual Studio 12 Win64"
-      CONFIG: Debug
-
-    - GENERATOR: "Visual Studio 12 Win64"
-      CONFIG: Release
-
-    - GENERATOR: "ubuntu"
-      CONFIG: Debug
-
-    - GENERATOR: "ubuntu"
-      CONFIG: Release
+platform:
+  - x86
+  - x64
+  
+configuration:
+- Debug
+- Release
 
 build_script:
   - cmake "-G%GENERATOR%" -H. -B_builds
