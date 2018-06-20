@@ -12,8 +12,8 @@ configuration:
 
 build_script:
   - cmake -H. -B_builds
-  - cmake --build _builds --config "%CONFIG%"
+  - cmake --build _builds
 
 test_script:
   - ps: cd _builds
-  - ctest -VV -C "%CONFIG%"
+  - ctest -VV
