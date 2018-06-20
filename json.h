@@ -73,11 +73,10 @@ namespace json
 		{
 			std::vector<int> result;
 			int value;
-			char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
 
 			for (size_t i = 0; i < this->size(); i++)
 			{
-				std::sscanf(buffer, "%i", this->at(i));
+				std::sscanf(this->at(i).c_str(), "%i", &value);
 				result.push_back(value);
 			}
 			return result;
@@ -86,11 +85,10 @@ namespace json
 		{
 			std::vector<unsigned int> result;
 			unsigned int value;
-			char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
 
 			for (size_t i = 0; i < this->size(); i++)
 			{
-				std::sscanf(buffer, "%u", this->at(i));
+				std::sscanf(this->at(i).c_str(), "%u", &value);
 				result.push_back(value);
 			}
 			return result;
@@ -99,11 +97,10 @@ namespace json
 		{
 			std::vector<long> result;
 			long value;
-			char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
 
 			for (size_t i = 0; i < this->size(); i++)
 			{
-				std::sscanf(buffer, "%li", this->at(i));
+				std::sscanf(this->at(i).c_str(), "%li", &value);
 				result.push_back(value);
 			}
 			return result;
@@ -112,11 +109,10 @@ namespace json
 		{
 			std::vector<unsigned long> result;
 			unsigned long value;
-			char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
 
 			for (size_t i = 0; i < this->size(); i++)
 			{
-				std::sscanf(buffer, "%lu", this->at(i));
+				std::sscanf(this->at(i).c_str(), "%lu", &value);
 				result.push_back(value);
 			}
 			return result;
@@ -125,11 +121,10 @@ namespace json
 		{
 			std::vector<double> result;
 			double value;
-			char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
 
 			for (size_t i = 0; i < this->size(); i++)
 			{
-				std::sscanf(buffer, "%lf", this->at(i));
+				std::sscanf(this->at(i).c_str(), "%lf", &value);
 				result.push_back(value);
 			}
 			return result;
@@ -138,11 +133,10 @@ namespace json
 		{
 			std::vector<float> result;
 			float value;
-			char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
 
 			for (size_t i = 0; i < this->size(); i++)
 			{
-				std::sscanf(buffer, "%f", this->at(i));
+				std::sscanf(this->at(i).c_str(), "%f",&value);
 				result.push_back(value);
 			}
 			return result;
