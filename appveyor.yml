@@ -16,8 +16,8 @@ for:
       only:
         - configuration: Release
     build_script:
-      - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=Release
-      - cmake --build _builds
+      - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=98
+      - cmake --build _builds --config Release
     test_script:
       - ps: cd _builds
       - ctest -VV -C Release
@@ -26,8 +26,8 @@ for:
       only:
         - configuration: Debug
     build_script:
-        - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=Debug
-        - cmake --build _builds 
+        - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_STANDARD=98
+        - cmake --build _builds --config Release
     test_script:
       - ps: cd _builds
       - ctest -VV -C Debug
