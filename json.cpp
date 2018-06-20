@@ -69,9 +69,9 @@ json::jtype::jtype json::jtype::detect(const std::string input)
 #pragma region JNUMBER
 
 // Private constructor
-json::jnumber::jnumber(const std::string input)
+json::jnumber::jnumber(const std::string input) : basic::istringnumber()
 {
-	this->number = input;
+	this->string = input;
 }
 
 json::jnumber json::jnumber::parse(const std::string input)
@@ -360,7 +360,7 @@ json::key_value_pair json::key_value_pair::parse(const std::string input, std::s
 	// Load the key
 	json::key_value_pair result;
 	std::string remainder2;
-	result.key = json::jvalue::parse(remainder, remainder2);
+	result.key = (std::string)json::jvalue::parse(remainder, remainder2);
 
 	// Search for the colon
 	remainder = json::remove_leading_spaces(remainder2);
@@ -487,9 +487,12 @@ std::vector<std::string> json::jobject::get_keys(void)
 bool json::jobject::has_key(const std::string key)
 {
 	std::vector<std::string> keys = this->get_keys();
-	if (std::find(keys.begin(), keys.end(), key) != keys.end())
+	for (size_t i = 0; i < this->size(); i++)
 	{
-		return true;
+		if (this->at(0).key == key)
+		{
+			return true;
+		}
 	}
 	return false;
 }

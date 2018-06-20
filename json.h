@@ -5,6 +5,8 @@
 #include <vector>
 #include <stdexcept>
 
+#define NUMBER_TO_STRING_BUFFER_LENGTH 100
+
 namespace json
 {
 	/* Data types */
@@ -14,24 +16,48 @@ namespace json
 		jtype detect(const std::string input);
 	}
 
-	class jnumber
+	namespace basic
+	{
+		class istringvalue
+		{
+		protected:
+			std::string string;
+		};
+
+		class istringnumber : public istringvalue
+		{
+		public:
+			// To basic type
+			operator int() { int result; sscanf(string.c_str(), "%i", &result); return result; }
+			operator unsigned int() { unsigned int result; sscanf(string.c_str(), "%u", &result); return result; }
+			operator long() { long result; sscanf(string.c_str(), "%li", &result); return result; }
+			operator unsigned long() { unsigned long result; sscanf(string.c_str(), "%lu", &result); return result; }
+			operator char() { char result; sscanf(string.c_str(), "%c", &result); return result; }
+			operator double() { double result; sscanf(string.c_str(), "%lf", &result); return result; }
+			operator float() { float result; sscanf(string.c_str(), "%f", &result); return result; }
+			operator std::string() { return this->string; }
+
+			// From basic type
+			istringnumber & istringnumber::operator=(const int input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; sprintf(cstr, "%i", input); this->string = std::string(cstr); }
+			istringnumber & istringnumber::operator=(const unsigned int input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; sprintf(cstr, "%u", input); this->string = std::string(cstr); }
+			istringnumber & istringnumber::operator=(const long input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; sprintf(cstr, "%li", input); this->string = std::string(cstr); }
+			istringnumber & istringnumber::operator=(const unsigned long input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; sprintf(cstr, "%lu", input); this->string = std::string(cstr); }
+			istringnumber & istringnumber::operator=(const char input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; sprintf(cstr, "%c", input); this->string = std::string(cstr); }
+			istringnumber & istringnumber::operator=(const double input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; sprintf(cstr, "%lf", input); this->string = std::string(cstr); }
+			istringnumber & istringnumber::operator=(const float input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; sprintf(cstr, "%f", input); this->string = std::string(cstr); }
+		};
+	}
+
+	class jnumber : public basic::istringnumber
 	{
 	public:
 		// Parsers
 		static jnumber parse(const std::string input);
 		static jnumber parse(const std::string input, std::string& remainder);
-
-		// Casters
-		operator int() { return std::stoi(number); }
-		operator long int() { return std::stol(number); }
-		operator double() { return std::stod(number); }
-		operator float() { return std::stof(number); }
-		operator std::string() { return this->number; }
 	private:
 		static std::string read_digits(const std::string input);
 		static std::string read_digits(const std::string input, std::string& remainder);
 		jnumber(const std::string input);
-		std::string number;
 	};
 
 	class jarray : public std::vector<std::string>
@@ -85,7 +111,7 @@ namespace json
 		std::string to_string(void);
 	};
 
-	class jvalue
+	class jvalue : public basic::istringnumber
 	{
 	public:
 		// Parsers
@@ -94,21 +120,11 @@ namespace json
 
 		// Constructors
 		inline jvalue() { this->type = jtype::jnull; }
-		inline jvalue(const int value) { this->string = std::to_string(value); this->type = jtype::jnumber; }
-		inline jvalue(const long value) { this->string = std::to_string(value); this->type = jtype::jnumber; }
-		inline jvalue(const double value) { this->string = std::to_string(value); this->type = jtype::jnumber; }
-		inline jvalue(const float value) { this->string = std::to_string(value); this->type = jtype::jnumber; }
-		inline jvalue(const bool value) { this->string = std::to_string(value); this->type = jtype::jbool; }
 		inline jvalue(const std::string value) { this->string = value; this->type = jtype::jstring; }
 		inline jvalue(jarray value) { this->string = (std::string)value; this->type = jtype::jarray; }
 
 		// Casters
 		operator jtype::jtype() { return this->type; }
-		operator std::string() { return this->string; }
-		operator int() { return std::stoi(this->string); }
-		operator long() { return std::stol(this->string); }
-		operator double() { return std::stod(this->string); }
-		operator float() { return std::stof(this->string); }
 		operator bool()
 		{
 			if (this->type == jtype::jbool)
@@ -126,7 +142,7 @@ namespace json
 					return false;
 				}
 			}
-			throw std::bad_cast();
+			throw std::runtime_error("Value is not a bool");
 		}
 		operator jarray()
 		{
@@ -140,7 +156,6 @@ namespace json
 		inline bool is_null(void) { return this->type == jtype::jnull; }
 		inline bool is_string(void) { return this->type == jtype::jstring; }
 	private:
-		std::string string;
 		jtype::jtype type;
 	};
 
