@@ -76,7 +76,8 @@ json::jnumber::jnumber(const std::string input)
 
 json::jnumber json::jnumber::parse(const std::string input)
 {
-	return json::jnumber::parse(input, std::string());
+	std::string remainder = std::string();
+	return json::jnumber::parse(input, remainder);
 }
 
 json::jnumber json::jnumber::parse(const std::string input, std::string& remainder)
@@ -177,7 +178,8 @@ json::jnumber json::jnumber::parse(const std::string input, std::string& remaind
 
 std::string json::jnumber::read_digits(const std::string input)
 {
-	return json::jnumber::read_digits(input, std::string());
+	std::string remainder = std::string();
+	return json::jnumber::read_digits(input, remainder);
 }
 
 std::string json::jnumber::read_digits(const std::string input, std::string& remainder)
@@ -221,7 +223,8 @@ std::string json::jnumber::read_digits(const std::string input, std::string& rem
 
 json::jarray json::jarray::parse(const std::string input)
 {
-	return json::jarray::parse(input, std::string());
+	std::string remainder = std::string();
+	return json::jarray::parse(input, remainder);
 }
 
 json::jarray json::jarray::parse(const std::string input, std::string& remainder)
@@ -342,7 +345,8 @@ std::string json::jarray::to_string(void)
 
 json::key_value_pair json::key_value_pair::parse(const std::string input)
 {
-	return json::key_value_pair::parse(input, std::string());
+	std::string remainder = std::string();
+	return json::key_value_pair::parse(input, remainder);
 }
 
 json::key_value_pair json::key_value_pair::parse(const std::string input, std::string& remainder)
@@ -392,7 +396,8 @@ std::string json::key_value_pair::to_string(void)
 
 json::jobject json::jobject::parse(const std::string input)
 {
-	return json::jobject::parse(input, std::string());
+	std::string remainder = std::string();
+	return json::jobject::parse(input, remainder);
 }
 
 json::jobject json::jobject::parse(const std::string input, std::string& remainder)
@@ -508,7 +513,8 @@ json::key_value_pair json::jobject::get_entry(const std::string key)
 
 json::jvalue json::jvalue::parse(const std::string input)
 {
-	return json::jvalue::parse(input, std::string());
+	std::string remainder = std::string();
+	return json::jvalue::parse(input, remainder);
 }
 
 json::jvalue json::jvalue::parse(const std::string input, std::string& remainder)
