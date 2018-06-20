@@ -39,13 +39,13 @@ namespace json
 			operator std::string() { return this->string; }
 
 			// From basic type
-			istringnumber & istringnumber::operator=(const int input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%i", input); string = std::string(cstr); }
-			istringnumber & istringnumber::operator=(const unsigned int input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%u", input); string = std::string(cstr); }
-			istringnumber & istringnumber::operator=(const long input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%li", input); string = std::string(cstr); }
-			istringnumber & istringnumber::operator=(const unsigned long input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%lu", input); string = std::string(cstr); }
-			istringnumber & istringnumber::operator=(const char input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%c", input); string = std::string(cstr); }
-			istringnumber & istringnumber::operator=(const double input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%lf", input); string = std::string(cstr); }
-			istringnumber & istringnumber::operator=(const float input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%f", input); string = std::string(cstr); }
+			void operator=(const int input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%i", input); string = std::string(cstr); }
+			void operator=(const unsigned int input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%u", input); string = std::string(cstr); }
+			void operator=(const long input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%li", input); string = std::string(cstr); }
+			void operator=(const unsigned long input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%lu", input); string = std::string(cstr); }
+			void operator=(const char input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%c", input); string = std::string(cstr); }
+			void operator=(const double input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%lf", input); string = std::string(cstr); }
+			void operator=(const float input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%f", input); string = std::string(cstr); }
 		};
 	}
 
