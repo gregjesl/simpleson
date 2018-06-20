@@ -10,9 +10,21 @@ configuration:
 - Debug
 - Release
 
-build_script:
-  - cmake -H. -B_builds
-  - cmake --build _builds
+for:
+  - 
+    matrix:
+      only:
+        - configuration: Release
+    build_script:
+        - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=Release
+        - cmake --build _builds
+  - 
+    matrix:
+      only:
+        - configuration: Debug
+    build_script:
+        - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=Debug
+        - cmake --build _builds 
 
 test_script:
   - ps: cd _builds
