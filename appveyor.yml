@@ -26,7 +26,7 @@ for:
       config: Release
 
 build_script:
-  - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=%config% -DCMAKE_CXX_STANDARD=98
+  - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=%config% -DCMAKE_CXX_STANDARD=98 -D_CRT_SECURE_NO_WARNINGS
   - cmake --build _builds --config %config%
 
 test_script:
