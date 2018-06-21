@@ -1,13 +1,5 @@
 #include "json.h"
 
-// Hide pragma warnings on GCC
-#ifdef GNUC
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunknown-pragmas"
-#endif
-
-#pragma region JTYPE
-
 json::jtype::jtype json::jtype::detect(const std::string input)
 {
 	std::string value = json::remove_leading_spaces(input);
@@ -64,9 +56,6 @@ json::jtype::jtype json::jtype::detect(const std::string input)
 		break;
 	}
 }
-#pragma endregion
-
-#pragma region JNUMBER
 
 // Private constructor
 json::jnumber::jnumber(const std::string input) : basic::istringnumber()
@@ -217,10 +206,6 @@ std::string json::jnumber::read_digits(const std::string input, std::string& rem
 	return value;
 }
 
-#pragma endregion
-
-#pragma region JARRAY
-
 json::jarray json::jarray::parse(const std::string input)
 {
 	std::string remainder = std::string();
@@ -339,10 +324,6 @@ std::string json::jarray::to_string(void)
 	return result;
 }
 
-#pragma endregion
-
-#pragma region KEY_VALUE_PAIR
-
 json::key_value_pair json::key_value_pair::parse(const std::string input)
 {
 	std::string remainder = std::string();
@@ -389,10 +370,6 @@ std::string json::key_value_pair::to_string(void)
 	}
 	return result;
 }
-
-#pragma endregion
-
-#pragma region JOBJECT
 
 json::jobject json::jobject::parse(const std::string input)
 {
@@ -509,10 +486,6 @@ json::key_value_pair json::jobject::get_entry(const std::string key)
 	}
 	throw std::invalid_argument("Key '" + key + "' does not exist");
 }
-
-#pragma endregion
-
-#pragma region JVALUE
 
 json::jvalue json::jvalue::parse(const std::string input)
 {
@@ -642,8 +615,6 @@ json::jvalue json::jvalue::parse(const std::string input, std::string& remainder
 	return result;
 }
 
-#pragma endregion
-
 std::string json::remove_leading_spaces(const std::string input)
 {
 	std::string output = input;
@@ -653,7 +624,3 @@ std::string json::remove_leading_spaces(const std::string input)
 	}
 	return output;
 }
-
-#ifdef GNUC
-#pragma GCC diagnostic pop
-#endif
