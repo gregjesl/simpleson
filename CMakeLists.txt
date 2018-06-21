@@ -9,6 +9,9 @@ set (CMAKE_CXX_STANDARD 98)
 
 # Add source to this project's executable.
 add_library (json "json.cpp")
+if(MSVC)
+	set_property(TARGET json PROPERTY _CRT_SECURE_NO_WARNINGS)
+endif()
 
 enable_testing()
 add_subdirectory (test)
