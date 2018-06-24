@@ -280,6 +280,7 @@ namespace json
 		std::vector<std::string> get_keys(void);
 		bool has_key(const std::string key);
 		key_value_pair get_entry(const std::string key);
+		void remove_entry(const std::string key);
 	private:
 		std::string to_string(void);
 	};

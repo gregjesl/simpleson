@@ -51,4 +51,8 @@ int main(void)
 	assert(result[5].value.get_type() == json::jtype::jobject);
 
 	assert(result.has_key("not a key") == false);
+
+	// Remove an entry
+	result.remove_entry("key1");
+	assert(!result.has_key("key1"));
 }

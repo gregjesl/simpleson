@@ -615,6 +615,17 @@ json::jvalue json::jvalue::parse(const std::string input, std::string& remainder
 	return result;
 }
 
+void json::jobject::remove_entry(const std::string key)
+{
+	for (size_t i = 0; i < this->size(); i++)
+	{
+		if (this->at(i).key.compare(key) == 0)
+		{
+			this->erase(this->begin() + i);
+		}
+	}
+}
+
 std::string json::remove_leading_spaces(const std::string input)
 {
 	std::string output = input;
