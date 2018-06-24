@@ -28,6 +28,15 @@ namespace json
 		class istringnumber : public istringvalue
 		{
 		public:
+			inline istringnumber() { }
+			inline istringnumber(const int value) { *this = value; }
+			inline istringnumber(const unsigned int value) { *this = value; }
+			inline istringnumber(const long value) { *this = value; }
+			inline istringnumber(const unsigned long value) { *this = value; }
+			inline istringnumber(const char value) { *this = value; }
+			inline istringnumber(const double value) { *this = value; }
+			inline istringnumber(const float value) { *this = value; }
+
 			// To basic type
 			operator int() { int result; std::sscanf(string.c_str(), "%i", &result); return result; }
 			operator unsigned int() { unsigned int result; std::sscanf(string.c_str(), "%u", &result); return result; }
@@ -117,6 +126,18 @@ namespace json
 			}
 			return result;
 		}
+		operator std::vector<char>()
+		{
+			std::vector<char> result;
+			char value;
+
+			for (size_t i = 0; i < this->size(); i++)
+			{
+				std::sscanf(this->at(i).c_str(), "%c", &value);
+				result.push_back(value);
+			}
+			return result;
+		}
 		operator std::vector<double>()
 		{
 			std::vector<double> result;
@@ -160,6 +181,19 @@ namespace json
 		inline jvalue(const std::string value) { this->string = value; this->type = jtype::jstring; }
 		inline jvalue(jarray value) { this->string = (std::string)value; this->type = jtype::jarray; }
 
+		inline jvalue(const int value) : istringnumber(value) { type = jtype::jnumber; }
+		inline jvalue(const unsigned int value) : istringnumber(value) { type = jtype::jnumber; }
+		inline jvalue(const long value) : istringnumber(value) { type = jtype::jnumber; }
+		inline jvalue(const unsigned long value) : istringnumber(value) { type = jtype::jnumber; }
+		inline jvalue(const char value) : istringnumber(value) { type = jtype::jnumber; }
+		inline jvalue(const float value) : istringnumber(value) { type = jtype::jnumber; }
+		inline jvalue(const double value) : istringnumber(value) { type = jtype::jnumber; }
+
+		// Operators
+		void operator=(const std::string input) { string = input; type = jtype::jstring; }
+		void operator=(jarray input) { string = (std::string)input; type = jtype::jarray; }
+		// void operator=(bool input) { if (input) { string = "true"; } else { string = "false"; } type = jtype::jbool; }
+
 		// Casters
 		operator jtype::jtype() { return this->type; }
 		operator bool()
@@ -189,6 +223,14 @@ namespace json
 			}
 			throw std::invalid_argument("RHS was not an array");
 		}
+		operator std::vector<int>() { return (jarray)*this; }
+		operator std::vector<unsigned int>() { return (jarray)*this; }
+		operator std::vector<long>() { return (jarray)*this; }
+		operator std::vector<unsigned long>() { return (jarray)*this; }
+		operator std::vector<char>() { return (jarray)*this; }
+		operator std::vector<double>() { return (jarray)*this; }
+		operator std::vector<float>() { return (jarray)*this; }
+
 		inline jtype::jtype get_type(void) { return this->type; }
 		inline bool is_null(void) { return this->type == jtype::jnull; }
 		inline bool is_string(void) { return this->type == jtype::jstring; }
@@ -202,6 +244,11 @@ namespace json
 		// Parsers
 		static key_value_pair parse(const std::string input);
 		static key_value_pair parse(const std::string input, std::string& remainder);
+
+		// Constructors
+		inline key_value_pair() { }
+		inline key_value_pair(const std::string key) { this->key = key; this->value.parse("null"); }
+		inline key_value_pair(const std::string key, const jvalue value) { this->key = key; this->value = value; }
 
 		// Operators
 		operator std::string() { return to_string(); }
@@ -220,8 +267,14 @@ namespace json
 		static jobject parse(const std::string input);
 		static jobject parse(const std::string input, std::string& remainder);
 
+		// Constructors
+		inline jobject() { }
+		inline jobject(const std::string str) { *this = jobject::parse(str); }
+
 		// Casters
 		operator std::string() { return to_string(); }
+		operator jvalue() { return jvalue::parse(this->to_string()); }
+		void operator=(std::string value) { *this = jobject::parse((std::string)value); }
 
 		// Methods
 		std::vector<std::string> get_keys(void);

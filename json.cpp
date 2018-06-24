@@ -582,7 +582,7 @@ json::jvalue json::jvalue::parse(const std::string input, std::string& remainder
 			remainder = value;
 			result.string = "true";
 		}
-		else if (value.length() >= 5 && value.substr(0, 4) == "false")
+		else if (value.length() >= 5 && value.substr(0, 5) == "false")
 		{
 			value.erase(0, 5);
 			remainder = value;
