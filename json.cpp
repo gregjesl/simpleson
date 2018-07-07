@@ -466,7 +466,7 @@ bool json::jobject::has_key(const std::string key)
 	std::vector<std::string> keys = this->get_keys();
 	for (size_t i = 0; i < this->size(); i++)
 	{
-		if (this->at(0).key == key)
+		if (this->at(i).key == key)
 		{
 			return true;
 		}
