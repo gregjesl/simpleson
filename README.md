@@ -57,6 +57,9 @@ An instance of `jobject` can be searlized by casting it to a `std::string`.  Not
 
 You can build your own `jobject` from scratch by creating a fresh instance of `jobject` and then pushing (`push_back`) key-value pairs into it.  
 
+### A note on booleans
+Booleans are handled a bit differently than other data types. Since everything can be cast to a boolean, having an implicit boolean operator meant everything goes to a boolean! Instead, **`jvalue` objects of type `jbool` are created using the `jvalue::jbool(const bool)` static method.** If you do not use this method and instead directly create/assign a boolean to a `jvalue` object, then the boolean will be cast to a `jnumber` type with a value of 0 or 1. 
+
 ### Key-value pairs
 A key-value pair is just that: a key and a value; the members `key` and `value` of `json::key_value_pair` are public.  The `key` member is simply the string of the key whie the `value` member is a `jvalue` instance.  A `jvalue` instance can be casted to `int`, `long`, `double`, `float`, `std::string`, and `json::jarray` depending on the type of value it holds.  
 
