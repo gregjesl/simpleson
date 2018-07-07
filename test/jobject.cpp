@@ -4,10 +4,12 @@
 int main(void)
 {
 	json::jobject result = json::jobject::parse("{\"key1\":\"test\",\"key2\":123, \"nulltest\":null, \"booltest\":true, \"arraytest\":[1,2,3], \"objecttest\":{\"key\":\"value\"}}");
+	assert(result.has_key("key1"));
 	assert(result[0].key.compare("key1") == 0);
 	assert(result.get_entry("key1").value.get_type() == json::jtype::jstring);
 	assert(((std::string)result[0].value).compare("test") == 0);
 
+	assert(result.has_key("key2"));
 	assert(result[1].key.compare("key2") == 0);
 	assert(result.get_entry("key2").value.get_type() == json::jtype::jnumber);
 	assert((int)result[1].value == 123);
