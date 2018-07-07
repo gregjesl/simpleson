@@ -176,6 +176,8 @@ namespace json
 		static jvalue parse(const std::string input);
 		static jvalue parse(const std::string input, std::string &remainder);
 
+		static jvalue jbool(const bool input);
+
 		// Constructors
 		inline jvalue() { this->type = jtype::jnull; }
 		inline jvalue(const std::string value) { this->string = value; this->type = jtype::jstring; }

@@ -16,8 +16,19 @@ int main(void)
 
 	// Boolean
 	value = json::jvalue::parse("true");
+	assert(value.get_type() == json::jtype::jbool);
 	assert((bool)value);
+
+	value = json::jvalue::jbool(true);
+	assert(value.get_type() == json::jtype::jbool);
+	assert((bool)value);
+
 	value = json::jvalue::parse("false");
+	assert(value.get_type() == json::jtype::jbool);
+	assert(!(bool)value);
+
+	value = json::jvalue::jbool(false);
+	assert(value.get_type() == json::jtype::jbool);
 	assert(!(bool)value);
 
 	// Array

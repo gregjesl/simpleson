@@ -615,6 +615,15 @@ json::jvalue json::jvalue::parse(const std::string input, std::string& remainder
 	return result;
 }
 
+json::jvalue json::jvalue::jbool(const bool value)
+{
+	if (value)
+	{
+		return json::jvalue::parse("true");
+	}
+	return json::jvalue::parse("false");
+}
+
 void json::jobject::remove_entry(const std::string key)
 {
 	for (size_t i = 0; i < this->size(); i++)
