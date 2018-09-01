@@ -1,8 +1,19 @@
 #include "json.h"
 
+#include <cctype>
+
+void json::parsing::tlws(std::string &input)
+{
+	while (input.size() > 0 && std::isspace(input[0]))
+	{
+		input.erase(0, 1);
+	}
+}
+
 json::jtype::jtype json::jtype::detect(const std::string input)
 {
-	std::string value = json::remove_leading_spaces(input);
+	std::string value = input;
+	json::parsing::tlws(value);
 	if (value.size() == 0)
 	{
 		return json::jtype::not_valid;
@@ -55,6 +66,271 @@ json::jtype::jtype json::jtype::detect(const std::string input)
 		return json::jtype::not_valid;
 		break;
 	}
+}
+
+std::string json::parsing::read_digits(std::string &input)
+{
+	// Trim leading white space
+	json::parsing::tlws(input);
+
+	// Initialize the result
+	std::string result;
+
+	// Loop until all digits are read
+	while (
+		input.size() > 0 &&
+		(
+			input.at(0) == '0' ||
+			input.at(0) == '1' ||
+			input.at(0) == '2' ||
+			input.at(0) == '3' ||
+			input.at(0) == '4' ||
+			input.at(0) == '5' ||
+			input.at(0) == '6' ||
+			input.at(0) == '7' ||
+			input.at(0) == '8' ||
+			input.at(0) == '9'
+		)
+	)
+	{
+		result += input[0];
+		input.erase(0, 1);
+	}
+
+	// Return the result
+	return result;
+}
+
+json::parsing::parse_results json::parsing::parse(std::string &value)
+{
+	// Strip white space
+	json::parsing::tlws(value);
+
+	// Validate input
+	if (value.size() == 0) throw std::invalid_argument("Input was only whitespace");
+
+	// Initialize the output
+	json::parsing::parse_results result;
+
+	// Detect the type
+	result.type = json::jtype::detect(value);
+
+	// Parse the values
+	switch (result.type)
+	{
+	case json::jtype::jstring:
+		// Validate the input
+		if (value[0] != '"') throw std::invalid_argument("Expected '\"' as first character");
+
+		// Remove the opening quote
+		value.erase(0, 1);
+
+		// Copy the string
+		while (value.size() > 0)
+		{
+			if (value[0] != '"' || (result.value.size() > 0 && result.value.back() == '\\'))
+			{
+				result.value.push_back(value[0]);
+				value.erase(0, 1);
+			}
+			else
+			{
+				break;
+			}
+		}
+		if (value.size() == 0 || value[0] != '"') result.type = json::jtype::not_valid;
+		else value.erase(0, 1);
+		break;
+	case json::jtype::jnumber:
+	{
+		if (value.at(0) == '-')
+		{
+			result.value += "-";
+			value.erase(0, 1);
+		}
+
+		if (value.length() < 1) throw std::invalid_argument("Input did not contain a valid number");
+
+		// Read the whole digits
+		std::string whole_digits = json::parsing::read_digits(value);
+
+		// Validate the read
+		if (whole_digits.length() == 0) throw std::invalid_argument("Input did not contain a valid number");
+
+		// Tack on the value
+		result.value += whole_digits;
+
+		// Check for decimal number
+		if (value[0] == '.')
+		{
+			result.value += ".";
+			value.erase(0, 1);
+			std::string decimal_digits = json::parsing::read_digits(value);
+
+			if (decimal_digits.length() < 1) throw std::invalid_argument("Input did not contain a valid number");
+
+			result.value += decimal_digits;
+		}
+
+		// Check for exponential number
+		if (value[0] == 'e' || value[0] == 'E')
+		{
+			result.value += value[0];
+			value.erase(0, 1);
+
+			if (value.size() == 0) throw std::invalid_argument("Input did not contain a valid number");
+
+			if (value[0] == '+' || value[0] == '-')
+			{
+				result.value += value[0];
+				value.erase(0, 1);
+			}
+
+			if (value.size() == 0) throw std::invalid_argument("Input did not contain a valid number");
+
+			std::string exponential_digits = json::parsing::read_digits(value);
+
+			if (exponential_digits.size() == 0) throw std::invalid_argument("Input did not contain a valid number");
+
+			result.value += exponential_digits;
+		}
+		break;
+	}
+	case json::jtype::jobject:
+	{
+		if(value[0] != '{') throw std::invalid_argument("Input did not contain a valid object");
+		result.value += '{';
+		value.erase(0, 1);
+		json::parsing::tlws(value);
+		while (value.size() > 0 && value[0] != '}')
+		{
+			// Read the key
+			json::parsing::parse_results key = json::parsing::parse(value);
+			if(key.type != json::jtype::jstring) throw std::invalid_argument("Input did not contain a valid object");
+			result.value += "\"" + key.value + "\"";
+			json::parsing::tlws(value);
+			if(value[0] != ':') throw std::invalid_argument("Input did not contain a valid object");
+			result.value += ':';
+			value.erase(0, 1);
+			json::parsing::parse_results subvalue = json::parsing::parse(value);
+			if(subvalue.type == json::jtype::not_valid) throw std::invalid_argument("Input did not contain a valid object");
+			if (subvalue.type == json::jtype::jstring) result.value += "\"" + subvalue.value + "\"";
+			else result.value += subvalue.value;
+			json::parsing::tlws(value);
+			if(value[0] != ',' && value[0] != '}') throw std::invalid_argument("Input did not contain a valid object");
+			if (value[0] == ',')
+			{
+				result.value += ',';
+				value.erase(0, 1);
+			}
+		}
+		if(value.size() == 0 || value[0] != '}') throw std::invalid_argument("Input did not contain a valid object");
+		result.value += '}';
+		value.erase(0, 1);
+		break;
+	}
+	case json::jtype::jarray:
+	{
+		if (value[0] != '[') throw std::invalid_argument("Input did not contain a valid array");
+		result.value += '[';
+		value.erase(0, 1);
+		json::parsing::tlws(value);
+		if(value.size() == 0) throw std::invalid_argument("Input did not contain a valid array");
+		while (value.size() > 0 && value[0] != ']')
+		{
+			json::parsing::parse_results array_value = json::parsing::parse(value);
+			if(array_value.type == json::jtype::not_valid) throw std::invalid_argument("Input did not contain a valid array");
+			result.value += array_value.value;
+			json::parsing::tlws(value);
+			if(value[0] != ',' && value[0] != ']') throw std::invalid_argument("Input did not contain a valid array");
+			if (value[0] == ',')
+			{
+				result.value += ',';
+				value.erase(0, 1);
+			}
+		}
+		if (value.size() == 0 || value[0] != ']') throw std::invalid_argument("Input did not contain a valid array");
+		result.value += ']';
+		value.erase(0, 1);
+		break;
+	}
+	case json::jtype::jbool:
+	{
+		if(value.size() < 4) throw std::invalid_argument("Input did not contain a valid boolean");
+		if (value.substr(0, 4).compare("true") == 0)
+		{
+			result.value += "true";
+			value.erase(0, 4);
+		}
+		else if (value.size() > 4 && value.substr(0, 5).compare("false") == 0)
+		{
+			result.value += "false";
+			value.erase(0, 5);
+		}
+		else
+		{
+			throw std::invalid_argument("Input did not contain a valid boolean");
+		}
+		break;
+	}
+	case json::jtype::jnull:
+	{
+		if (value.size() < 4) throw std::invalid_argument("Input did not contain a valid null");
+		if (value.substr(0, 4) == "null")
+		{
+			result.value += "null";
+			value.erase(0, 4);
+		}
+		else
+		{
+			throw std::invalid_argument("Input did not contain a valid null");
+		}
+		break;
+	}
+	default:
+		throw std::invalid_argument("Input did not contain valid json");
+		break;
+	}
+
+	return result;
+}
+
+json::jdictionary json::jdictionary::parse(std::string &input)
+{
+	json::parsing::tlws(input);
+	if (input[0] != '{') throw std::invalid_argument("Input is not a valid dictionary");
+	input.erase(0, 1);
+	json::parsing::tlws(input);
+	if(input.size() == 0) throw std::invalid_argument("Input is not a valid dictionary");
+	json::jdictionary result;
+	while (input.size() > 0 && input[0] != '}')
+	{
+		// Get key
+		std::vector<std::string> kvp(2);
+		json::parsing::parse_results key = json::parsing::parse(input);
+		if(key.type != json::jtype::jstring || key.value == "") throw std::invalid_argument("Input is not a valid dictionary");
+		kvp[0] = key.value;
+		
+		// Get value
+		json::parsing::tlws(input);
+		if(input[0] != ':') throw std::invalid_argument("Input is not a valid dictionary");
+		input.erase(0, 1);
+		json::parsing::tlws(input);
+		json::parsing::parse_results value = json::parsing::parse(input);
+		if(value.type == json::jtype::not_valid) throw std::invalid_argument("Input is not a valid dictionary");
+		if (value.type == json::jtype::jstring) kvp[1] = "\"" + value.value + "\"";
+		else kvp[1] = value.value;
+
+		// Clean up
+		json::parsing::tlws(input);
+		if(input[0] != ',' && input[0] != '}') throw std::invalid_argument("Input is not a valid dictionary");
+		if(input[0] == ',') input.erase(0, 1);
+		result.push_back(kvp);
+		
+	}
+	if (input.size() == 0 || input[0] != '}') throw std::invalid_argument("Input did not contain a valid dictionary");
+	input.erase(0, 1);
+	return result;
 }
 
 // Private constructor

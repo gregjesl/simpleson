@@ -10,12 +10,79 @@
 
 namespace json
 {
+	namespace parsing
+	{
+		void tlws(std::string &input);
+	}
+
 	/* Data types */
 	namespace jtype
 	{
 		enum jtype { jstring, jnumber, jobject, jarray, jbool, jnull, not_valid };
 		jtype detect(const std::string input);
 	}
+
+	namespace parsing
+	{
+		std::string read_digits(std::string &input);
+
+		struct parse_results
+		{
+			jtype::jtype type;
+			std::string value;
+		};
+		parse_results parse(std::string &input);
+	}
+
+	class jdictionary : protected std::vector<std::vector<std::string> >
+	{
+		// Proxy class used for assignment
+		class proxy
+		{
+			jdictionary &a;
+			std::string idx;
+		public:
+			proxy(jdictionary &a, std::string idx) : a(a), idx(idx) {}
+			void operator= (std::string x) {
+				for (size_t i = 0; i < this->a.size(); i++)
+				{
+					if (a.at(i).at(0) == idx)
+					{
+						a.at(i)[1] = x;
+						return;
+					}
+				}
+				std::vector<std::string> kvp(2);
+				kvp[0] = this->idx;
+				kvp[1] = x;
+				a.push_back(kvp);
+			}
+			inline operator std::string() 
+			{
+				for (size_t i = 0; i < this->a.size(); i++) if (a.at(i).at(0) == idx) return a.at(i).at(1);
+				throw std::invalid_argument("Key not found");
+			}
+			bool operator== (const std::string other)
+			{
+				return ((std::string)(*this)) == other;
+			}
+			bool operator!= (const std::string other)
+			{
+				return !((*this) == other);
+			}
+		};
+	public:
+		static jdictionary parse(std::string &input);
+		inline bool has_key(const std::string key)
+		{
+			for (size_t i = 0; i < this->size(); i++) if (this->at(i).at(0) == key) return true;
+			return false;
+		}
+		inline virtual jdictionary::proxy operator[](const std::string key)
+		{
+			return jdictionary::proxy(*this, key);
+		}
+	};
 
 	namespace basic
 	{
