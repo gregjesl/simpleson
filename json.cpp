@@ -332,7 +332,7 @@ json::jdictionary json::jdictionary::parse(std::string &input)
 	input.erase(0, 1);
 	return result;
 }
-
+/*
 // Private constructor
 json::jnumber::jnumber(const std::string input) : basic::istringnumber()
 {
@@ -440,6 +440,7 @@ json::jnumber json::jnumber::parse(const std::string input, std::string& remaind
 
 	return json::jnumber(value);
 }
+
 
 std::string json::jnumber::read_digits(const std::string input)
 {
@@ -920,3 +921,4 @@ std::string json::remove_leading_spaces(const std::string input)
 	}
 	return output;
 }
+*/
