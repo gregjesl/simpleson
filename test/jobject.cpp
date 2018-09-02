@@ -1,60 +1,55 @@
 #include "json.h"
-#include <assert.h>
+#include <cassert>
+#include <math.h>
 
 int main(void)
 {
-	json::jobject result = json::jobject::parse("{\"key1\":\"test\",\"key2\":123, \"nulltest\":null, \"booltest\":true, \"arraytest\":[1,2,3], \"objecttest\":{\"key\":\"value\"}}");
-	assert(result.has_key("key1"));
-	assert(result[0].key.compare("key1") == 0);
-	assert(result.get_entry("key1").value.get_type() == json::jtype::jstring);
-	assert(((std::string)result[0].value).compare("test") == 0);
+	std::string input =
+		"{"
+		"	\"number\":123.456,"
+		"	\"string\":\"hello \\\" world\","
+		"	\"array\":[1,2,3],"
+		"	\"boolean\":true,"
+		"	\"isnull\":null,"
+		"	\"objarray\":[{\"key\":\"value\"}]"
+		"}";
 
-	assert(result.has_key("key2"));
-	assert(result[1].key.compare("key2") == 0);
-	assert(result.get_entry("key2").value.get_type() == json::jtype::jnumber);
-	assert((int)result[1].value == 123);
+	json::jobject result = json::jobject::parse(input);
+	assert(result.get("number") == "123.456");
+	assert(result.get("string") == "\"hello \\\" world\"");
+	assert(result.get("array") == "[1,2,3]");
+	assert(result.get("boolean") == "true");
+	assert(result.get("isnull") == "null");
+	assert(result.get("objarray") == "[{\"key\":\"value\"}]");
+	assert(result.has_key("number"));
+	assert(!result.has_key("nokey"));
 
-	assert(result[2].key.compare("nulltest") == 0);
-	assert(result.get_entry("nulltest").value.get_type() == json::jtype::jnull);
-	assert(((std::string)result[2].value).compare("null") == 0);
+	// Assign some new values
+	result.set("newvalue", "789");
+	assert(result.get("newvalue") == "789");
+	result.set("array", "[4,5,6]");
+	assert(result.get("array") == "[4,5,6]");
 
-	assert(result[3].key.compare("booltest") == 0);
-	assert(result[3].value.get_type() == json::jtype::jbool);
-	assert((bool)result[3].value);
+	// Create a JSON object
+	json::jobject test;
+	test["int"] = 123;
+	test["float"] = 12.3f;
+	test["string"] = "test \"string";
+	int test_array[3] = { 1, 2, 3 };
+	test["array"] = std::vector<int>(test_array, test_array + 3);
 
-	assert(result[4].key.compare("arraytest") == 0);
-	assert(result[4].value.get_type() == json::jtype::jarray);
+	json::jobject subobj;
+	char world[6] = "world";
+	subobj["hello"] = world;
+	test["subobj"] = subobj;
 
-	assert(result[5].key.compare("objecttest") == 0);
-	assert(result[5].value.get_type() == json::jtype::jobject);
-	
-	std::string obj_str = (std::string)result;
-	result = json::jobject::parse(obj_str);
-	assert(result[0].key.compare("key1") == 0);
-	assert(result[0].value.get_type() == json::jtype::jstring);
-	assert(((std::string)result[0].value).compare("test") == 0);
-
-	assert(result[1].key.compare("key2") == 0);
-	assert(result[1].value.get_type() == json::jtype::jnumber);
-	assert((int)result[1].value == 123);
-
-	assert(result[2].key.compare("nulltest") == 0);
-	assert(result[2].value.get_type() == json::jtype::jnull);
-	assert(((std::string)result[2].value).compare("null") == 0);
-
-	assert(result[3].key.compare("booltest") == 0);
-	assert(result[3].value.get_type() == json::jtype::jbool);
-	assert((bool)result[3].value);
-
-	assert(result[4].key.compare("arraytest") == 0);
-	assert(result[4].value.get_type() == json::jtype::jarray);
-
-	assert(result[5].key.compare("objecttest") == 0);
-	assert(result[5].value.get_type() == json::jtype::jobject);
-
-	assert(result.has_key("not a key") == false);
-
-	// Remove an entry
-	result.remove_entry("key1");
-	assert(!result.has_key("key1"));
+	std::string serial = (std::string)test;
+	json::jobject retest = json::jobject::parse(serial);
+	assert((int)retest["int"] == 123);
+	assert(fabs((float)retest["float"] - 12.3f) < 1.0e-6);
+	assert(retest["string"] == "test \"string");
+	std::vector<int> retest_array = retest["array"];
+	assert(retest_array == std::vector<int>(test_array, test_array + 3));
+	json::jobject resubobj = test["subobj"];
+	assert(resubobj["hello"] == "world");
 }

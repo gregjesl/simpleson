@@ -3,15 +3,7 @@
 #
 cmake_minimum_required (VERSION 3.8)
 
-project(simpleson VERSION 0.1.0)
-
-set (CMAKE_CXX_STANDARD 98)
-
-# Add source to this project's executable.
-add_library (json "json.cpp")
-if(MSVC)
-	set_property(TARGET json PROPERTY _CRT_SECURE_NO_WARNINGS)
-endif()
+project(simpleson VERSION 2.0.0)
 
 enable_testing()
 add_subdirectory (test)

@@ -10,6 +10,11 @@ configuration:
 - Debug
 - Release
 
+matrix:
+  exclude:
+    - image: Visual Studio 2017
+      configuration: Release
+
 for:
   - 
     matrix:
