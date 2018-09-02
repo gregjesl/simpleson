@@ -1,5 +1,5 @@
 image:
-- Visual Studio 2013
+- Visual Studio 2017
 - Ubuntu
 
 platform:
@@ -9,6 +9,11 @@ platform:
 configuration:
 - Debug
 - Release
+
+matrix:
+  exclude:
+    - image: Visual Studio 2017
+      configuration: Release
 
 for:
   - 
