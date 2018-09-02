@@ -49,7 +49,7 @@ for:
 
 build_script:
   - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=%config% -DCMAKE_CXX_STANDARD=98 -A %plat%
-  - cmake --build _builds --config %config%
+  - cmake --build _builds --config %config% -A %plat%
 
 test_script:
   - ps: cd _builds
