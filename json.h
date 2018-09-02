@@ -5,6 +5,7 @@
 #include <vector>
 #include <cstdio>
 #include <stdexcept>
+#include <cctype>
 
 #define NUMBER_TO_STRING_BUFFER_LENGTH 100
 
@@ -12,61 +13,104 @@ namespace json
 {
 	namespace parsing
 	{
-		void tlws(std::string &input);
+		inline void tlws(std::string &input)
+		{
+			while (input.size() > 0 && std::isspace(input[0])) input.erase(0, 1);
+		}
 	}
 
 	/* Data types */
 	namespace jtype
 	{
 		enum jtype { jstring, jnumber, jobject, jarray, jbool, jnull, not_valid };
-		jtype detect(const std::string input);
+		inline jtype detect(const std::string input)
+		{
+			std::string value = input;
+			json::parsing::tlws(value);
+			if (value.size() == 0) return json::jtype::not_valid;
+			switch (value.at(0))
+			{
+			case '[':
+				return json::jtype::jarray;
+				break;
+			case '"':
+				return json::jtype::jstring;
+				break;
+			case '{':
+				return json::jtype::jobject;
+				break;
+			case '-':
+			case '0':
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+			case '8':
+			case '9':
+				return json::jtype::jnumber;
+			case 't':
+			case 'f':
+				if (value.substr(0, 4) == "true" || value.substr(0, 5) == "false")
+				{
+					return json::jtype::jbool;
+				}
+				else
+				{
+					return json::jtype::not_valid;
+				}
+				break;
+			case 'n':
+				if (value.substr(0, 4) == "null")
+				{
+					return json::jtype::jnull;
+				}
+				else
+				{
+					return json::jtype::not_valid;
+				}
+				break;
+			default:
+				return json::jtype::not_valid;
+				break;
+			}
+		}
 	}
 
 	namespace parsing
 	{
-		std::string read_digits(std::string &input);
-
-		struct parse_results
+		inline std::string read_digits(std::string &input)
 		{
-			jtype::jtype type;
-			std::string value;
-		};
-		parse_results parse(std::string &input);
+			// Trim leading white space
+			json::parsing::tlws(input);
 
-		template <typename T>
-		T get_number(const std::string number, const char* format)
-		{
-			T result;
-			std::sscanf(number.c_str(), format, &result);
-			return result;
-		}
+			// Initialize the result
+			std::string result;
 
-		template <typename T>
-		std::string get_number_string(const T number, const char *format)
-		{
-			char cstr[NUMBER_TO_STRING_BUFFER_LENGTH];
-			std::sprintf(cstr, format, number);
-			return std::string(cstr);
-		}
-
-		inline std::vector<std::string> parse_array(std::string value)
-		{
-			json::parsing::tlws(value);
-			if (value[0] != '[') throw std::invalid_argument("Input was not an array");
-			value.erase(0, 1);
-			std::vector<std::string> result;
-			while (value.size() > 0)
+			// Loop until all digits are read
+			while (
+				input.size() > 0 &&
+				(
+					input.at(0) == '0' ||
+					input.at(0) == '1' ||
+					input.at(0) == '2' ||
+					input.at(0) == '3' ||
+					input.at(0) == '4' ||
+					input.at(0) == '5' ||
+					input.at(0) == '6' ||
+					input.at(0) == '7' ||
+					input.at(0) == '8' ||
+					input.at(0) == '9'
+					)
+				)
 			{
-				json::parsing::tlws(value);
-				json::parsing::parse_results parse_results = json::parsing::parse(value);
-				if (parse_results.type == json::jtype::not_valid) throw std::invalid_argument("Input was not properly formated");
-				result.push_back(parse_results.value);
-				json::parsing::tlws(value);
-				if (value[0] == ']') break;
-				if (value[0] == ',') value.erase(0, 1);
+				result += input[0];
+				input.erase(0, 1);
 			}
-			if(value[0] != ']') throw std::invalid_argument("Input was not properly formated");
-			value.erase(0, 1);
+
+			// Return the result
 			return result;
 		}
 
@@ -103,41 +147,264 @@ namespace json
 			}
 			return result;
 		}
+
+		struct parse_results
+		{
+			jtype::jtype type;
+			std::string value;
+		};
+		inline parse_results parse(std::string &value)
+		{
+			// Strip white space
+			json::parsing::tlws(value);
+
+			// Validate input
+			if (value.size() == 0) throw std::invalid_argument("Input was only whitespace");
+
+			// Initialize the output
+			json::parsing::parse_results result;
+
+			// Detect the type
+			result.type = json::jtype::detect(value);
+
+			// Parse the values
+			switch (result.type)
+			{
+			case json::jtype::jstring:
+				// Validate the input
+				if (value[0] != '"') throw std::invalid_argument("Expected '\"' as first character");
+
+				// Remove the opening quote
+				value.erase(0, 1);
+
+				// Copy the string
+				while (value.size() > 0)
+				{
+					if (value[0] != '"' || (result.value.size() > 0 && result.value.back() == '\\'))
+					{
+						result.value.push_back(value[0]);
+						value.erase(0, 1);
+					}
+					else
+					{
+						break;
+					}
+				}
+				if (value.size() == 0 || value[0] != '"') result.type = json::jtype::not_valid;
+				else value.erase(0, 1);
+				break;
+			case json::jtype::jnumber:
+			{
+				if (value.at(0) == '-')
+				{
+					result.value += "-";
+					value.erase(0, 1);
+				}
+
+				if (value.length() < 1) throw std::invalid_argument("Input did not contain a valid number");
+
+				// Read the whole digits
+				std::string whole_digits = json::parsing::read_digits(value);
+
+				// Validate the read
+				if (whole_digits.length() == 0) throw std::invalid_argument("Input did not contain a valid number");
+
+				// Tack on the value
+				result.value += whole_digits;
+
+				// Check for decimal number
+				if (value[0] == '.')
+				{
+					result.value += ".";
+					value.erase(0, 1);
+					std::string decimal_digits = json::parsing::read_digits(value);
+
+					if (decimal_digits.length() < 1) throw std::invalid_argument("Input did not contain a valid number");
+
+					result.value += decimal_digits;
+				}
+
+				// Check for exponential number
+				if (value[0] == 'e' || value[0] == 'E')
+				{
+					result.value += value[0];
+					value.erase(0, 1);
+
+					if (value.size() == 0) throw std::invalid_argument("Input did not contain a valid number");
+
+					if (value[0] == '+' || value[0] == '-')
+					{
+						result.value += value[0];
+						value.erase(0, 1);
+					}
+
+					if (value.size() == 0) throw std::invalid_argument("Input did not contain a valid number");
+
+					std::string exponential_digits = json::parsing::read_digits(value);
+
+					if (exponential_digits.size() == 0) throw std::invalid_argument("Input did not contain a valid number");
+
+					result.value += exponential_digits;
+				}
+				break;
+			}
+			case json::jtype::jobject:
+			{
+				// The first character should be an open bracket
+				if (value[0] != '{') throw std::invalid_argument("Input did not contain a valid object");
+				result.value += '{';
+				value.erase(0, 1);
+				json::parsing::tlws(value);
+
+				// Loop until the closing bracket is encountered
+				while (value.size() > 0 && value[0] != '}')
+				{
+					// Read the key
+					json::parsing::parse_results key = json::parsing::parse(value);
+
+					// Validate that the key is a string
+					if (key.type != json::jtype::jstring) throw std::invalid_argument("Input did not contain a valid object");
+
+					// Store the key
+					result.value += "\"" + json::parsing::escape_quotes(key.value) + "\"";
+					json::parsing::tlws(value);
+
+					// Look for the colon
+					if (value[0] != ':') throw std::invalid_argument("Input did not contain a valid object");
+					result.value += ':';
+					value.erase(0, 1);
+
+					// Get the value
+					json::parsing::parse_results subvalue = json::parsing::parse(value);
+
+					// Validate the value type
+					if (subvalue.type == json::jtype::not_valid) throw std::invalid_argument("Input did not contain a valid object");
+
+					// Store the value
+					if (subvalue.type == json::jtype::jstring) result.value += "\"" + json::parsing::escape_quotes(subvalue.value) + "\"";
+					else result.value += subvalue.value;
+					json::parsing::tlws(value);
+
+					// Validate format
+					if (value[0] != ',' && value[0] != '}') throw std::invalid_argument("Input did not contain a valid object");
+
+					// Check for next line
+					if (value[0] == ',')
+					{
+						result.value += ',';
+						value.erase(0, 1);
+					}
+				}
+				if (value.size() == 0 || value[0] != '}') throw std::invalid_argument("Input did not contain a valid object");
+				result.value += '}';
+				value.erase(0, 1);
+				break;
+			}
+			case json::jtype::jarray:
+			{
+				if (value[0] != '[') throw std::invalid_argument("Input did not contain a valid array");
+				result.value += '[';
+				value.erase(0, 1);
+				json::parsing::tlws(value);
+				if (value.size() == 0) throw std::invalid_argument("Input did not contain a valid array");
+				while (value.size() > 0 && value[0] != ']')
+				{
+					json::parsing::parse_results array_value = json::parsing::parse(value);
+					if (array_value.type == json::jtype::not_valid) throw std::invalid_argument("Input did not contain a valid array");
+					result.value += array_value.value;
+					json::parsing::tlws(value);
+					if (value[0] != ',' && value[0] != ']') throw std::invalid_argument("Input did not contain a valid array");
+					if (value[0] == ',')
+					{
+						result.value += ',';
+						value.erase(0, 1);
+					}
+				}
+				if (value.size() == 0 || value[0] != ']') throw std::invalid_argument("Input did not contain a valid array");
+				result.value += ']';
+				value.erase(0, 1);
+				break;
+			}
+			case json::jtype::jbool:
+			{
+				if (value.size() < 4) throw std::invalid_argument("Input did not contain a valid boolean");
+				if (value.substr(0, 4).compare("true") == 0)
+				{
+					result.value += "true";
+					value.erase(0, 4);
+				}
+				else if (value.size() > 4 && value.substr(0, 5).compare("false") == 0)
+				{
+					result.value += "false";
+					value.erase(0, 5);
+				}
+				else
+				{
+					throw std::invalid_argument("Input did not contain a valid boolean");
+				}
+				break;
+			}
+			case json::jtype::jnull:
+			{
+				if (value.size() < 4) throw std::invalid_argument("Input did not contain a valid null");
+				if (value.substr(0, 4) == "null")
+				{
+					result.value += "null";
+					value.erase(0, 4);
+				}
+				else
+				{
+					throw std::invalid_argument("Input did not contain a valid null");
+				}
+				break;
+			}
+			default:
+				throw std::invalid_argument("Input did not contain valid json");
+				break;
+			}
+
+			return result;
+		}
+
+		template <typename T>
+		T get_number(const std::string number, const char* format)
+		{
+			T result;
+			std::sscanf(number.c_str(), format, &result);
+			return result;
+		}
+
+		template <typename T>
+		std::string get_number_string(const T number, const char *format)
+		{
+			char cstr[NUMBER_TO_STRING_BUFFER_LENGTH];
+			std::sprintf(cstr, format, number);
+			return std::string(cstr);
+		}
+
+		inline std::vector<std::string> parse_array(std::string value)
+		{
+			json::parsing::tlws(value);
+			if (value[0] != '[') throw std::invalid_argument("Input was not an array");
+			value.erase(0, 1);
+			std::vector<std::string> result;
+			while (value.size() > 0)
+			{
+				json::parsing::tlws(value);
+				json::parsing::parse_results parse_results = json::parsing::parse(value);
+				if (parse_results.type == json::jtype::not_valid) throw std::invalid_argument("Input was not properly formated");
+				result.push_back(parse_results.value);
+				json::parsing::tlws(value);
+				if (value[0] == ']') break;
+				if (value[0] == ',') value.erase(0, 1);
+			}
+			if (value[0] != ']') throw std::invalid_argument("Input was not properly formated");
+			value.erase(0, 1);
+			return result;
+		}
 	}
 
-	class jdictionary : public std::vector<std::vector<std::string> >
-	{
-	public:
-		static jdictionary parse(std::string &input);
-		inline virtual bool has_key(const std::string key)
-		{
-			for (size_t i = 0; i < this->size(); i++) if (this->at(i).at(0) == key) return true;
-			return false;
-		}
-		inline void set(const std::string key, const std::string value)
-		{
-			for (size_t i = 0; i < this->size(); i++)
-			{
-				if (this->at(i).at(0) == key)
-				{
-					this->at(i)[1] = value;
-					return;
-				}
-			}
-			std::vector<std::string> kvp(2);
-			kvp[0] = key;
-			kvp[1] = value;
-			this->push_back(kvp);
-		}
-
-		inline std::string get(const std::string key)
-		{
-			for (size_t i = 0; i < this->size(); i++) if (this->at(i).at(0) == key) return this->at(i).at(1);
-			throw std::invalid_argument("Key not found");
-		}
-	};
-
-	class jobject : protected jdictionary
+	class jobject : protected std::vector<std::vector<std::string> >
 	{
 		class proxy
 		{
@@ -197,7 +464,7 @@ namespace json
 			{
 				this->source.set(this->key, "\"" + json::parsing::escape_quotes(value) + "\"");
 			}
-			operator std::string() { 
+			operator std::string() {
 				return json::parsing::unescape_quotes(json::parsing::parse(source.get(key)).value);
 			}
 			bool operator== (const std::string other) { return ((std::string)(*this)) == other; }
@@ -222,13 +489,7 @@ namespace json
 			// Objects
 			inline operator json::jobject()
 			{
-				json::jobject result;
-				json::jdictionary dict = json::jdictionary::parse(this->source.get(key));
-				for (size_t i = 0; i < dict.size(); i++)
-				{
-					result.push_back(dict[i]);
-				}
-				return result;
+				return json::jobject::parse(this->source.get(key));
 			}
 			void operator=(json::jobject input)
 			{
@@ -247,16 +508,7 @@ namespace json
 			{
 				std::vector<std::string> objs = json::parsing::parse_array(this->source.get(key));
 				std::vector<json::jobject> results;
-				for (size_t i = 0; i < objs.size(); i++)
-				{
-					json::jobject result;
-					json::jdictionary dict = json::jdictionary::parse(this->source.get(key));
-					for (size_t i = 0; i < dict.size(); i++)
-					{
-						result.push_back(dict[i]);
-					}
-					results.push_back(result);
-				}
+				for (size_t i = 0; i < objs.size(); i++) results.push_back(json::jobject::parse(objs[i]));
 				return results;
 			}
 			operator std::vector<std::string>() { return json::parsing::parse_array(this->source.get(key)); }
@@ -302,300 +554,89 @@ namespace json
 			}
 
 		};
-		public:
-			inline virtual jobject::proxy operator[](const std::string key)
-			{
-				return jobject::proxy(*this, key);
-			}
-
-			operator std::string()
-			{
-				if (this->size() == 0) return "{}";
-				std::string result = "{";
-				for (size_t i = 0; i < this->size(); i++)
-				{
-					result += "\"" + this->at(i)[0] + "\":" + this->at(i)[1] + ",";
-				}
-				result.pop_back();
-				result += "}";
-				return result;
-			}
-	};
-	/*
-	namespace basic
-	{
-		class istringvalue
-		{
-		protected:
-			std::string string;
-		};
-
-		class istringnumber : public istringvalue
-		{
-		public:
-			inline istringnumber() { }
-			inline istringnumber(const int value) { *this = value; }
-			inline istringnumber(const unsigned int value) { *this = value; }
-			inline istringnumber(const long value) { *this = value; }
-			inline istringnumber(const unsigned long value) { *this = value; }
-			inline istringnumber(const char value) { *this = value; }
-			inline istringnumber(const double value) { *this = value; }
-			inline istringnumber(const float value) { *this = value; }
-
-			// To basic type
-			operator int() { int result; std::sscanf(string.c_str(), "%i", &result); return result; }
-			operator unsigned int() { unsigned int result; std::sscanf(string.c_str(), "%u", &result); return result; }
-			operator long() { long result; std::sscanf(string.c_str(), "%li", &result); return result; }
-			operator unsigned long() { unsigned long result; std::sscanf(string.c_str(), "%lu", &result); return result; }
-			operator char() { char result; std::sscanf(string.c_str(), "%c", &result); return result; }
-			operator double() { double result; std::sscanf(string.c_str(), "%lf", &result); return result; }
-			operator float() { float result; std::sscanf(string.c_str(), "%f", &result); return result; }
-			operator std::string() { return this->string; }
-
-			// From basic type
-			void operator=(const int input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%i", input); string = std::string(cstr); }
-			void operator=(const unsigned int input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%u", input); string = std::string(cstr); }
-			void operator=(const long input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%li", input); string = std::string(cstr); }
-			void operator=(const unsigned long input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%lu", input); string = std::string(cstr); }
-			void operator=(const char input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%c", input); string = std::string(cstr); }
-			void operator=(const double input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%lf", input); string = std::string(cstr); }
-			void operator=(const float input) { char cstr[NUMBER_TO_STRING_BUFFER_LENGTH]; std::sprintf(cstr, "%f", input); string = std::string(cstr); }
-		};
-	}
-	*/
-	/*
-	class jnumber : public basic::istringnumber
-	{
 	public:
-		// Parsers
-		static jnumber parse(const std::string input);
-		static jnumber parse(const std::string input, std::string& remainder);
-	private:
-		static std::string read_digits(const std::string input);
-		static std::string read_digits(const std::string input, std::string& remainder);
-		jnumber(const std::string input);
-	};
-
-	class jarray : public std::vector<std::string>
-	{
-	public:
-		// Parsers
-		static jarray parse(const std::string input);
-		static jarray parse(const std::string input, std::string& remainder);
-
-		// Casters
-		operator std::vector<int>()
+		inline static jobject parse(std::string &input)
 		{
-			std::vector<int> result;
-			int value;
-
-			for (size_t i = 0; i < this->size(); i++)
+			json::parsing::tlws(input);
+			if (input[0] != '{') throw std::invalid_argument("Input is not a valid object");
+			input.erase(0, 1);
+			json::parsing::tlws(input);
+			if (input.size() == 0) throw std::invalid_argument("Input is not a valid object");
+			json::jobject result;
+			while (input.size() > 0 && input[0] != '}')
 			{
-				std::sscanf(this->at(i).c_str(), "%i", &value);
-				result.push_back(value);
+				// Get key
+				std::vector<std::string> kvp(2);
+				json::parsing::parse_results key = json::parsing::parse(input);
+				if (key.type != json::jtype::jstring || key.value == "") throw std::invalid_argument("Input is not a valid object");
+				kvp[0] = key.value;
+
+				// Get value
+				json::parsing::tlws(input);
+				if (input[0] != ':') throw std::invalid_argument("Input is not a valid object");
+				input.erase(0, 1);
+				json::parsing::tlws(input);
+				json::parsing::parse_results value = json::parsing::parse(input);
+				if (value.type == json::jtype::not_valid) throw std::invalid_argument("Input is not a valid object");
+				if (value.type == json::jtype::jstring) kvp[1] = "\"" + value.value + "\"";
+				else kvp[1] = value.value;
+
+				// Clean up
+				json::parsing::tlws(input);
+				if (input[0] != ',' && input[0] != '}') throw std::invalid_argument("Input is not a valid object");
+				if (input[0] == ',') input.erase(0, 1);
+				result.push_back(kvp);
+
 			}
+			if (input.size() == 0 || input[0] != '}') throw std::invalid_argument("Input did not contain a valid object");
+			input.erase(0, 1);
 			return result;
 		}
-		operator std::vector<unsigned int>()
+		inline bool has_key(const std::string key)
 		{
-			std::vector<unsigned int> result;
-			unsigned int value;
-
+			for (size_t i = 0; i < this->size(); i++) if (this->at(i).at(0) == key) return true;
+			return false;
+		}
+		inline void set(const std::string key, const std::string value)
+		{
 			for (size_t i = 0; i < this->size(); i++)
 			{
-				std::sscanf(this->at(i).c_str(), "%u", &value);
-				result.push_back(value);
-			}
-			return result;
-		}
-		operator std::vector<long>()
-		{
-			std::vector<long> result;
-			long value;
-
-			for (size_t i = 0; i < this->size(); i++)
-			{
-				std::sscanf(this->at(i).c_str(), "%li", &value);
-				result.push_back(value);
-			}
-			return result;
-		}
-		operator std::vector<unsigned long>()
-		{
-			std::vector<unsigned long> result;
-			unsigned long value;
-
-			for (size_t i = 0; i < this->size(); i++)
-			{
-				std::sscanf(this->at(i).c_str(), "%lu", &value);
-				result.push_back(value);
-			}
-			return result;
-		}
-		operator std::vector<char>()
-		{
-			std::vector<char> result;
-			char value;
-
-			for (size_t i = 0; i < this->size(); i++)
-			{
-				std::sscanf(this->at(i).c_str(), "%c", &value);
-				result.push_back(value);
-			}
-			return result;
-		}
-		operator std::vector<double>()
-		{
-			std::vector<double> result;
-			double value;
-
-			for (size_t i = 0; i < this->size(); i++)
-			{
-				std::sscanf(this->at(i).c_str(), "%lf", &value);
-				result.push_back(value);
-			}
-			return result;
-		}
-		operator std::vector<float>()
-		{
-			std::vector<float> result;
-			float value;
-
-			for (size_t i = 0; i < this->size(); i++)
-			{
-				std::sscanf(this->at(i).c_str(), "%f",&value);
-				result.push_back(value);
-			}
-			return result;
-		}
-		operator std::string() { return to_string(); }
-		operator jtype::jtype() { return type; }
-	private:
-		jtype::jtype type;
-		std::string to_string(void);
-	};
-	*/
-	/*
-	class jvalue : public basic::istringnumber
-	{
-	public:
-		// Parsers
-		static jvalue parse(const std::string input);
-		static jvalue parse(const std::string input, std::string &remainder);
-
-		static jvalue jbool(const bool input);
-
-		// Constructors
-		inline jvalue() { this->type = jtype::jnull; }
-		inline jvalue(const std::string value) { this->string = value; this->type = jtype::jstring; }
-		inline jvalue(jarray value) { this->string = (std::string)value; this->type = jtype::jarray; }
-
-		inline jvalue(const int value) : istringnumber(value) { type = jtype::jnumber; }
-		inline jvalue(const unsigned int value) : istringnumber(value) { type = jtype::jnumber; }
-		inline jvalue(const long value) : istringnumber(value) { type = jtype::jnumber; }
-		inline jvalue(const unsigned long value) : istringnumber(value) { type = jtype::jnumber; }
-		inline jvalue(const char value) : istringnumber(value) { type = jtype::jnumber; }
-		inline jvalue(const float value) : istringnumber(value) { type = jtype::jnumber; }
-		inline jvalue(const double value) : istringnumber(value) { type = jtype::jnumber; }
-
-		// Operators
-		void operator=(const std::string input) { string = input; type = jtype::jstring; }
-		void operator=(jarray input) { string = (std::string)input; type = jtype::jarray; }
-		// void operator=(bool input) { if (input) { string = "true"; } else { string = "false"; } type = jtype::jbool; }
-
-		// Casters
-		operator jtype::jtype() { return this->type; }
-		operator bool()
-		{
-			if (this->type == jtype::jbool)
-			{
-				return this->string == "true";
-			}
-			if (this->type == jtype::jnumber)
-			{
-				if (this->string == "1")
+				if (this->at(i).at(0) == key)
 				{
-					return true;
-				}
-				if (this->string == "0")
-				{
-					return false;
+					this->at(i)[1] = value;
+					return;
 				}
 			}
-			throw std::runtime_error("Value is not a bool");
+			std::vector<std::string> kvp(2);
+			kvp[0] = key;
+			kvp[1] = value;
+			this->push_back(kvp);
 		}
-		operator jarray()
+
+		inline std::string get(const std::string key)
 		{
-			if (this->type == jtype::jarray)
-			{
-				return jarray::parse(this->string);
-			}
-			throw std::invalid_argument("RHS was not an array");
+			for (size_t i = 0; i < this->size(); i++) if (this->at(i).at(0) == key) return this->at(i).at(1);
+			throw std::invalid_argument("Key not found");
 		}
-		operator std::vector<int>() { return (jarray)*this; }
-		operator std::vector<unsigned int>() { return (jarray)*this; }
-		operator std::vector<long>() { return (jarray)*this; }
-		operator std::vector<unsigned long>() { return (jarray)*this; }
-		operator std::vector<char>() { return (jarray)*this; }
-		operator std::vector<double>() { return (jarray)*this; }
-		operator std::vector<float>() { return (jarray)*this; }
 
-		inline jtype::jtype get_type(void) { return this->type; }
-		inline bool is_null(void) { return this->type == jtype::jnull; }
-		inline bool is_string(void) { return this->type == jtype::jstring; }
-	private:
-		jtype::jtype type;
+		inline virtual jobject::proxy operator[](const std::string key)
+		{
+			return jobject::proxy(*this, key);
+		}
+
+		operator std::string()
+		{
+			if (this->size() == 0) return "{}";
+			std::string result = "{";
+			for (size_t i = 0; i < this->size(); i++)
+			{
+				result += "\"" + this->at(i)[0] + "\":" + this->at(i)[1] + ",";
+			}
+			result.pop_back();
+			result += "}";
+			return result;
+		}
 	};
-
-	class key_value_pair
-	{
-	public:
-		// Parsers
-		static key_value_pair parse(const std::string input);
-		static key_value_pair parse(const std::string input, std::string& remainder);
-
-		// Constructors
-		inline key_value_pair() { }
-		inline key_value_pair(const std::string key) { this->key = key; this->value.parse("null"); }
-		inline key_value_pair(const std::string key, const jvalue value) { this->key = key; this->value = value; }
-
-		// Operators
-		operator std::string() { return to_string(); }
-
-		// Properties
-		std::string key;
-		jvalue value;
-	private:
-		std::string to_string(void);
-	};
-
-	class jobject : public std::vector<key_value_pair>
-	{
-	public:
-		// Parsers
-		static jobject parse(const std::string input);
-		static jobject parse(const std::string input, std::string& remainder);
-
-		// Constructors
-		inline jobject() { }
-		inline jobject(const std::string str) { *this = jobject::parse(str); }
-
-		// Casters
-		operator std::string() { return to_string(); }
-		operator jvalue() { return jvalue::parse(this->to_string()); }
-		void operator=(std::string value) { *this = jobject::parse((std::string)value); }
-
-		// Methods
-		std::vector<std::string> get_keys(void);
-		bool has_key(const std::string key);
-		key_value_pair get_entry(const std::string key);
-		void remove_entry(const std::string key);
-	private:
-		std::string to_string(void);
-	};
-
-	std::string remove_leading_spaces(const std::string input);
-	*/
 }
 
 #endif // !JSON_H

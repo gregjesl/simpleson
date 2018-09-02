@@ -50,5 +50,5 @@ char *test_data =
 int main(void)
 {
 	std::string test_string(test_data);
-	json::jdictionary test_parse = json::jdictionary::parse(test_string);
+	json::jobject test_parse = json::jobject::parse(test_string);
 }

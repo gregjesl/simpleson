@@ -21,4 +21,32 @@ int main(void)
 		assert(result.type == json::jtype::jnumber);
 		assert(result.value == numbers[i]);
 	}
+
+	// Parse object
+	input = " {\"hello\":\"world\"},";
+	result = json::parsing::parse(input);
+	assert(result.type == json::jtype::jobject);
+	assert(result.value == "{\"hello\":\"world\"}");
+
+	// Parse array
+	input = " [{\"hello\":\"world\"},{\"hello\":\"world\"},{\"hello\":\"world\"}],";
+	result = json::parsing::parse(input);
+	assert(result.type == json::jtype::jarray);
+	assert(result.value == "[{\"hello\":\"world\"},{\"hello\":\"world\"},{\"hello\":\"world\"}]");
+
+	// Parse boolean
+	const std::string bools[] = { "true", "false" };
+	for (int i = 0; i < 2; i++)
+	{
+		input = bools[i];
+		result = json::parsing::parse(input);
+		assert(result.type == json::jtype::jbool);
+		assert(result.value == bools[i]);
+	}
+
+	// Parse null
+	input = "null";
+	result = json::parsing::parse(input);
+	assert(result.type == json::jtype::jnull);
+	assert(result.value == "null");
 }
