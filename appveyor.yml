@@ -1,5 +1,5 @@
 image:
-- Visual Studio 2015
+- Visual Studio 2013
 - Ubuntu
 
 platform:
@@ -15,41 +15,19 @@ for:
     matrix:
       only:
         - configuration: Debug
-        - platform: x86
     environment:
       config: Debug
-      plat: x86
-
-  - 
-    matrix:
-      only:
-        - configuration: Debug
-        - platform: x64
-    environment:
-      config: Debug
-      plat: x64
 
   - 
     matrix:
       only:
         - configuration: Release
-        - platform: x86
     environment:
       config: Release
-      plat: x86
-
-  - 
-    matrix:
-      only:
-        - configuration: Release
-        - platform: x64
-    environment:
-      config: Release
-      plat: x64
 
 build_script:
-  - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=%config% -DCMAKE_CXX_STANDARD=98 -A %plat%
-  - cmake --build _builds --config %config% -A %plat%
+  - cmake -H. -B_builds -DCMAKE_BUILD_TYPE=%config% -DCMAKE_CXX_STANDARD=98
+  - cmake --build _builds --config %config%
 
 test_script:
   - ps: cd _builds
