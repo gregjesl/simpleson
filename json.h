@@ -119,7 +119,7 @@ namespace json
 			std::string parsed;
 			for (size_t i = 0; i < input.size(); i++)
 			{
-				if (input[i] == '\"' && parsed.back() != '\\')
+				if (input[i] == '\"' && parsed[parsed.size() - 1] != '\\')
 				{
 					parsed += '\\';
 				}
@@ -180,7 +180,7 @@ namespace json
 				// Copy the string
 				while (value.size() > 0)
 				{
-					if (value[0] != '"' || (result.value.size() > 0 && result.value.back() == '\\'))
+					if (value[0] != '"' || (result.value.size() > 0 && result.value[result.value.size() - 1] == '\\'))
 					{
 						result.value.push_back(value[0]);
 						value.erase(0, 1);
@@ -430,7 +430,7 @@ namespace json
 					if (wrap) value += "\"" + json::parsing::escape_quotes(values[i]) + "\"";
 					else value += values[i] + ",";
 				}
-				value.pop_back();
+				value.erase(value.size() - 1, 1);
 				value += "]";
 				this->source.set(key, value);
 			}
@@ -465,7 +465,8 @@ namespace json
 				this->source.set(this->key, "\"" + json::parsing::escape_quotes(value) + "\"");
 			}
 			operator std::string() {
-				return json::parsing::unescape_quotes(json::parsing::parse(source.get(key)).value);
+				std::string value = source.get(key);
+				return json::parsing::unescape_quotes(json::parsing::parse(value).value);
 			}
 			bool operator== (const std::string other) { return ((std::string)(*this)) == other; }
 			bool operator!= (const std::string other) { return !(((std::string)(*this)) == other); }
@@ -489,7 +490,8 @@ namespace json
 			// Objects
 			inline operator json::jobject()
 			{
-				return json::jobject::parse(this->source.get(key));
+				std::string value = this->source.get(key);
+				return json::jobject::parse(value);
 			}
 			void operator=(json::jobject input)
 			{
@@ -538,7 +540,8 @@ namespace json
 			}
 			inline bool is_true()
 			{
-				json::parsing::parse_results result = json::parsing::parse(this->source.get(key));
+				std::string value = this->source.get(key);
+				json::parsing::parse_results result = json::parsing::parse(value);
 				return (result.type == json::jtype::jbool && result.value == "true");
 			}
 
@@ -549,7 +552,8 @@ namespace json
 			}
 			inline bool is_null()
 			{
-				json::parsing::parse_results result = json::parsing::parse(this->source.get(key));
+				std::string value = this->source.get(key);
+				json::parsing::parse_results result = json::parsing::parse(value);
 				return result.type == json::jtype::jnull;
 			}
 
@@ -632,7 +636,7 @@ namespace json
 			{
 				result += "\"" + this->at(i)[0] + "\":" + this->at(i)[1] + ",";
 			}
-			result.pop_back();
+			result.erase(result.size() - 1, 1);
 			result += "}";
 			return result;
 		}

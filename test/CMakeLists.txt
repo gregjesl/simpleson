@@ -6,6 +6,7 @@ file(GLOB tests
 
 # Set debug to ensure asserts work
 set(CMAKE_CONFIGURATION_TYPES "Debug")
+set (CMAKE_CXX_STANDARD 98)
 
 foreach(test ${tests})
     string(REGEX REPLACE ".*/" "" test_name "${test}")
