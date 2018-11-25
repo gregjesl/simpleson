@@ -427,8 +427,9 @@ namespace json
 				std::string value = "[";
 				for (size_t i = 0; i < values.size(); i++)
 				{
-					if (wrap) value += "\"" + json::parsing::escape_quotes(values[i]) + "\"";
-					else value += values[i] + ",";
+					if (wrap) value += "\"" + json::parsing::escape_quotes(values[i]) + "\";
+					else value += values[i];
+					value += ",";
 				}
 				value.erase(value.size() - 1, 1);
 				value += "]";
