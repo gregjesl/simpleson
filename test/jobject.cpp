@@ -11,7 +11,9 @@ int main(void)
 		"	\"array\":[1,2,3],"
 		"	\"boolean\":true,"
 		"	\"isnull\":null,"
-		"	\"objarray\":[{\"key\":\"value\"}]"
+		"	\"objarray\":[{\"key\":\"value\"}],"
+		"	\"strarray\":[\"hello\",\"world\"],"
+		"	\"emptyarray\":[]"
 		"}";
 
 	json::jobject result = json::jobject::parse(input);
@@ -21,8 +23,16 @@ int main(void)
 	assert(result.get("boolean") == "true");
 	assert(result.get("isnull") == "null");
 	assert(result.get("objarray") == "[{\"key\":\"value\"}]");
+	assert(result.get("strarray") == "[\"hello\",\"world\"]");
+	assert(result.get("emptyarray") == "[]");
 	assert(result.has_key("number"));
 	assert(!result.has_key("nokey"));
+	std::vector<std::string> strarray = result["strarray"];
+	assert(strarray.size() == 2);
+	assert(strarray[0] == "hello");
+	assert(strarray[1] == "world");
+	std::vector<std::string> emptyarray = result["emptyarray"];
+	assert(emptyarray.size() == 0);
 
 	// Assign some new values
 	result.set("newvalue", "789");
@@ -37,6 +47,9 @@ int main(void)
 	test["string"] = "test \"string";
 	int test_array[3] = { 1, 2, 3 };
 	test["array"] = std::vector<int>(test_array, test_array + 3);
+	std::string test_string_array[2] = { "hello", "world" };
+	test["strarray"] = std::vector<std::string>(test_string_array, test_string_array + 2);
+	test["emptyarray"] = std::vector<std::string>();
 
 	json::jobject subobj;
 	char world[6] = "world";
@@ -52,4 +65,10 @@ int main(void)
 	assert(retest_array == std::vector<int>(test_array, test_array + 3));
 	json::jobject resubobj = test["subobj"];
 	assert(resubobj["hello"] == "world");
+	strarray = retest["strarray"];
+	assert(strarray.size() == 2);
+	assert(strarray[0] == "hello");
+	assert(strarray[1] == "world");
+	emptyarray = retest["emptyarray"];
+	assert(emptyarray.size() == 0);
 }

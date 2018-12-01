@@ -22,6 +22,18 @@ int main(void)
 		assert(result.value == numbers[i]);
 	}
 
+	// Parse empty array
+	input = " []";
+	result = json::parsing::parse(input);
+	assert(result.type == json::jtype::jarray);
+	assert((std::string)result.value == "[]");
+
+	// Parse string array
+	input = " [\"world\"]},";
+	result = json::parsing::parse(input);
+	assert(result.type == json::jtype::jarray);
+	assert((std::string)result.value == "[\"world\"]");
+
 	// Parse object
 	input = " {\"hello\":\"world\"},";
 	result = json::parsing::parse(input);
