@@ -311,7 +311,8 @@ namespace json
 				{
 					json::parsing::parse_results array_value = json::parsing::parse(value);
 					if (array_value.type == json::jtype::not_valid) throw std::invalid_argument("Input did not contain a valid array");
-					result.value += array_value.value;
+					if (array_value.type == json::jtype::jstring) result.value += "\"" + json::parsing::escape_quotes(array_value.value) + "\"";
+					else result.value += array_value.value;
 					json::parsing::tlws(value);
 					if (value[0] != ',' && value[0] != ']') throw std::invalid_argument("Input did not contain a valid array");
 					if (value[0] == ',')
@@ -387,6 +388,13 @@ namespace json
 			json::parsing::tlws(value);
 			if (value[0] != '[') throw std::invalid_argument("Input was not an array");
 			value.erase(0, 1);
+			json::parsing::tlws(value);
+			if (value[0] == ']')
+			{
+				// Empty array
+				value.erase(0, 1);
+				return std::vector<std::string>();
+			}
 			std::vector<std::string> result;
 			while (value.size() > 0)
 			{
@@ -427,10 +435,10 @@ namespace json
 				std::string value = "[";
 				for (size_t i = 0; i < values.size(); i++)
 				{
-					if (wrap) value += "\"" + json::parsing::escape_quotes(values[i]) + "\"";
+					if (wrap) value += "\"" + json::parsing::escape_quotes(values[i]) + "\",";
 					else value += values[i] + ",";
 				}
-				value.erase(value.size() - 1, 1);
+				if(values.size() > 0) value.erase(value.size() - 1, 1);
 				value += "]";
 				this->source.set(key, value);
 			}
