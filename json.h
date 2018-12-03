@@ -605,49 +605,76 @@ namespace json
 			return result;
 		}
 
-		inline static jobject parse(std::string &input)
+		inline static jobject parse(const std::string &input)
 		{
+			std::string temp(input);
 			const char error[] = "Input is not a valid object";
-			json::parsing::tlws(input);
-			if (input[0] != '{') throw std::invalid_argument(error);
-			input.erase(0, 1);
-			json::parsing::tlws(input);
-			if (input.size() == 0) throw std::invalid_argument(error);
+			json::parsing::tlws(temp);
+			if (temp[0] != '{') throw std::invalid_argument(error);
+			temp.erase(0, 1);
+			json::parsing::tlws(temp);
+			if (temp.size() == 0) throw std::invalid_argument(error);
 			json::jobject result;
-			while (input.size() > 0 && input[0] != '}')
+			while (temp.size() > 0 && temp[0] != '}')
 			{
 				// Get key
 				kvp entry;
-				json::parsing::parse_results key = json::parsing::parse(input);
+				json::parsing::parse_results key = json::parsing::parse(temp);
 				if (key.type != json::jtype::jstring || key.value == "") throw std::invalid_argument(error);
 				entry.first = key.value;
 
 				// Get value
-				json::parsing::tlws(input);
-				if (input[0] != ':') throw std::invalid_argument(error);
-				input.erase(0, 1);
-				json::parsing::tlws(input);
-				json::parsing::parse_results value = json::parsing::parse(input);
+				json::parsing::tlws(temp);
+				if (temp[0] != ':') throw std::invalid_argument(error);
+				temp.erase(0, 1);
+				json::parsing::tlws(temp);
+				json::parsing::parse_results value = json::parsing::parse(temp);
 				if (value.type == json::jtype::not_valid) throw std::invalid_argument(error);
 				if (value.type == json::jtype::jstring) entry.second = "\"" + value.value + "\"";
 				else entry.second = value.value;
 
 				// Clean up
-				json::parsing::tlws(input);
-				if (input[0] != ',' && input[0] != '}') throw std::invalid_argument(error);
-				if (input[0] == ',') input.erase(0, 1);
+				json::parsing::tlws(temp);
+				if (temp[0] != ',' && temp[0] != '}') throw std::invalid_argument(error);
+				if (temp[0] == ',') temp.erase(0, 1);
 				result += entry;
 
 			}
-			if (input.size() == 0 || input[0] != '}') throw std::invalid_argument(error);
-			input.erase(0, 1);
+			if (temp.size() == 0 || temp[0] != '}') throw std::invalid_argument(error);
+			temp.erase(0, 1);
 			return result;
 		}
+
+		inline static jobject parse(const char* input)
+		{
+			return parse(std::string(input));
+		}
+
+		// Returns true if a json parsing error occured
+		inline bool static tryparse(const std::string &input, jobject &output)
+		{
+			try
+			{
+				output = parse(input);
+			}
+			catch(std::exception ex)
+			{
+				return true;
+			}
+			return false;
+		}
+
+		inline bool static tryparse(const char* input, jobject &output)
+		{
+			return tryparse(std::string(input), output);
+		}
+
 		inline bool has_key(const std::string &key)
 		{
 			for (size_t i = 0; i < this->size(); i++) if (this->at(i).first == key) return true;
 			return false;
 		}
+
 		inline void set(const std::string key, const std::string value)
 		{
 			for (size_t i = 0; i < this->size(); i++)

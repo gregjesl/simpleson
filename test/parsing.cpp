@@ -61,4 +61,10 @@ int main(void)
 	result = json::parsing::parse(input);
 	assert(result.type == json::jtype::jnull);
 	assert(result.value == "null");
+
+	// Tryparse
+	json::jobject tryparse_result;
+	assert(json::jobject::tryparse("not json", tryparse_result));
+	assert(!json::jobject::tryparse("{\"hello\":\"world\"}", tryparse_result));
+	assert("{\"hello\":\"world\"}" == (std::string)tryparse_result);
 }
