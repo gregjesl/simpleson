@@ -24,9 +24,9 @@ namespace json
 	namespace jtype
 	{
 		enum jtype { jstring, jnumber, jobject, jarray, jbool, jnull, not_valid };
-		inline jtype detect(const std::string input)
+		inline jtype detect(const std::string &input)
 		{
-			std::string value = input;
+			std::string value(input);
 			json::parsing::tlws(value);
 			if (value.size() == 0) return json::jtype::not_valid;
 			switch (value.at(0))
@@ -115,7 +115,7 @@ namespace json
 			return result;
 		}
 
-		inline std::string escape_quotes(const std::string input)
+		inline std::string escape_quotes(const std::string &input)
 		{
 			std::string parsed;
 			for (size_t i = 0; i < input.size(); i++)
@@ -129,10 +129,10 @@ namespace json
 			return parsed;
 		}
 
-		inline std::string unescape_quotes(const std::string input)
+		inline std::string unescape_quotes(const std::string &input)
 		{
 			std::string result;
-			std::string value = input;
+			std::string value(input);
 			while (value.size() > 0)
 			{
 				if (value.size() > 1 && value[0] == '\\' && value[1] == '\"')
@@ -374,7 +374,7 @@ namespace json
 		}
 
 		template <typename T>
-		T get_number(const std::string number, const char* format)
+		T get_number(const std::string &number, const char* format)
 		{
 			T result;
 			std::sscanf(number.c_str(), format, &result);
@@ -382,7 +382,7 @@ namespace json
 		}
 
 		template <typename T>
-		std::string get_number_string(const T number, const char *format)
+		std::string get_number_string(const T &number, const char *format)
 		{
 			char cstr[NUMBER_TO_STRING_BUFFER_LENGTH];
 			std::sprintf(cstr, format, number);
@@ -426,7 +426,7 @@ namespace json
 		class proxy
 		{
 			jobject &source;
-			std::string key;
+			const std::string key;
 		protected:
 			template<typename T>
 			inline T get_number(const char* format)
@@ -439,7 +439,7 @@ namespace json
 				this->source.set(key, json::parsing::get_number_string(value, format));
 			}
 
-			inline void set_array(const std::vector<std::string> values, const bool wrap = false)
+			inline void set_array(const std::vector<std::string> &values, const bool wrap = false)
 			{
 				std::string value = "[";
 				for (size_t i = 0; i < values.size(); i++)
@@ -465,7 +465,7 @@ namespace json
 				return result;
 			}
 			template<typename T>
-			inline void set_number_array(const std::vector<T> values, const char* format)
+			inline void set_number_array(const std::vector<T> &values, const char* format)
 			{
 				std::vector<std::string> numbers;
 				for (size_t i = 0; i < values.size(); i++)
@@ -475,7 +475,7 @@ namespace json
 				this->set_array(numbers);
 			}
 		public:
-			proxy(jobject &source, std::string key) : source(source), key(key) {}
+			proxy(jobject &source, const std::string key) : source(source), key(key) {}
 			// Strings
 			inline void operator= (const std::string value)
 			{
@@ -576,9 +576,9 @@ namespace json
 
 		};
 	public:
-		inline size_t size() { return std::vector<kvp>::size(); }
+		inline size_t size() const { return std::vector<kvp>::size(); }
 
-		jobject& operator+=(kvp& other)
+		jobject& operator+=(const kvp& other)
 		{
 			if (this->has_key(other.first)) throw std::invalid_argument("Key conflict");
 			this->push_back(other);
@@ -588,6 +588,13 @@ namespace json
 		jobject& operator+=(jobject& other)
 		{
 			for (size_t i = 0; i < other.size(); i++) *this += other.at(i);
+			return *this;
+		}
+
+		jobject& operator+=(const jobject& other)
+		{
+			json::jobject copy(other);
+			for (size_t i = 0; i < copy.size(); i++) *this += copy.at(i);
 			return *this;
 		}
 
@@ -636,7 +643,7 @@ namespace json
 			input.erase(0, 1);
 			return result;
 		}
-		inline bool has_key(const std::string key)
+		inline bool has_key(const std::string &key)
 		{
 			for (size_t i = 0; i < this->size(); i++) if (this->at(i).first == key) return true;
 			return false;
@@ -657,7 +664,7 @@ namespace json
 			this->push_back(entry);
 		}
 
-		inline std::string get(const std::string key)
+		inline std::string get(const std::string &key)
 		{
 			for (size_t i = 0; i < this->size(); i++) if (this->at(i).first == key) return this->at(i).second;
 			throw std::invalid_argument("Key not found");
