@@ -196,19 +196,21 @@ namespace json
 				break;
 			case json::jtype::jnumber:
 			{
+				const char error[] = "Input did not contain a valid number";
+
 				if (value.at(0) == '-')
 				{
 					result.value += "-";
 					value.erase(0, 1);
 				}
 
-				if (value.length() < 1) throw std::invalid_argument("Input did not contain a valid number");
+				if (value.length() < 1) throw std::invalid_argument(error);
 
 				// Read the whole digits
 				std::string whole_digits = json::parsing::read_digits(value);
 
 				// Validate the read
-				if (whole_digits.length() == 0) throw std::invalid_argument("Input did not contain a valid number");
+				if (whole_digits.length() == 0) throw std::invalid_argument(error);
 
 				// Tack on the value
 				result.value += whole_digits;
@@ -220,7 +222,7 @@ namespace json
 					value.erase(0, 1);
 					std::string decimal_digits = json::parsing::read_digits(value);
 
-					if (decimal_digits.length() < 1) throw std::invalid_argument("Input did not contain a valid number");
+					if (decimal_digits.length() < 1) throw std::invalid_argument(error);
 
 					result.value += decimal_digits;
 				}
@@ -231,7 +233,7 @@ namespace json
 					result.value += value[0];
 					value.erase(0, 1);
 
-					if (value.size() == 0) throw std::invalid_argument("Input did not contain a valid number");
+					if (value.size() == 0) throw std::invalid_argument(error);
 
 					if (value[0] == '+' || value[0] == '-')
 					{
@@ -239,11 +241,11 @@ namespace json
 						value.erase(0, 1);
 					}
 
-					if (value.size() == 0) throw std::invalid_argument("Input did not contain a valid number");
+					if (value.size() == 0) throw std::invalid_argument(error);
 
 					std::string exponential_digits = json::parsing::read_digits(value);
 
-					if (exponential_digits.size() == 0) throw std::invalid_argument("Input did not contain a valid number");
+					if (exponential_digits.size() == 0) throw std::invalid_argument(error);
 
 					result.value += exponential_digits;
 				}
@@ -251,8 +253,10 @@ namespace json
 			}
 			case json::jtype::jobject:
 			{
+				const char error[] = "Input did not contain a valid object";
+
 				// The first character should be an open bracket
-				if (value[0] != '{') throw std::invalid_argument("Input did not contain a valid object");
+				if (value[0] != '{') throw std::invalid_argument(error);
 				result.value += '{';
 				value.erase(0, 1);
 				json::parsing::tlws(value);
@@ -264,14 +268,14 @@ namespace json
 					json::parsing::parse_results key = json::parsing::parse(value);
 
 					// Validate that the key is a string
-					if (key.type != json::jtype::jstring) throw std::invalid_argument("Input did not contain a valid object");
+					if (key.type != json::jtype::jstring) throw std::invalid_argument(error);
 
 					// Store the key
 					result.value += "\"" + json::parsing::escape_quotes(key.value) + "\"";
 					json::parsing::tlws(value);
 
 					// Look for the colon
-					if (value[0] != ':') throw std::invalid_argument("Input did not contain a valid object");
+					if (value[0] != ':') throw std::invalid_argument(error);
 					result.value += ':';
 					value.erase(0, 1);
 
@@ -279,7 +283,7 @@ namespace json
 					json::parsing::parse_results subvalue = json::parsing::parse(value);
 
 					// Validate the value type
-					if (subvalue.type == json::jtype::not_valid) throw std::invalid_argument("Input did not contain a valid object");
+					if (subvalue.type == json::jtype::not_valid) throw std::invalid_argument(error);
 
 					// Store the value
 					if (subvalue.type == json::jtype::jstring) result.value += "\"" + json::parsing::escape_quotes(subvalue.value) + "\"";
@@ -287,7 +291,7 @@ namespace json
 					json::parsing::tlws(value);
 
 					// Validate format
-					if (value[0] != ',' && value[0] != '}') throw std::invalid_argument("Input did not contain a valid object");
+					if (value[0] != ',' && value[0] != '}') throw std::invalid_argument(error);
 
 					// Check for next line
 					if (value[0] == ',')
@@ -296,33 +300,34 @@ namespace json
 						value.erase(0, 1);
 					}
 				}
-				if (value.size() == 0 || value[0] != '}') throw std::invalid_argument("Input did not contain a valid object");
+				if (value.size() == 0 || value[0] != '}') throw std::invalid_argument(error);
 				result.value += '}';
 				value.erase(0, 1);
 				break;
 			}
 			case json::jtype::jarray:
 			{
-				if (value[0] != '[') throw std::invalid_argument("Input did not contain a valid array");
+				const char error[] = "Input did not contain a valid array";
+				if (value[0] != '[') throw std::invalid_argument(error);
 				result.value += '[';
 				value.erase(0, 1);
 				json::parsing::tlws(value);
-				if (value.size() == 0) throw std::invalid_argument("Input did not contain a valid array");
+				if (value.size() == 0) throw std::invalid_argument(error);
 				while (value.size() > 0 && value[0] != ']')
 				{
 					json::parsing::parse_results array_value = json::parsing::parse(value);
-					if (array_value.type == json::jtype::not_valid) throw std::invalid_argument("Input did not contain a valid array");
+					if (array_value.type == json::jtype::not_valid) throw std::invalid_argument(error);
 					if (array_value.type == json::jtype::jstring) result.value += "\"" + json::parsing::escape_quotes(array_value.value) + "\"";
 					else result.value += array_value.value;
 					json::parsing::tlws(value);
-					if (value[0] != ',' && value[0] != ']') throw std::invalid_argument("Input did not contain a valid array");
+					if (value[0] != ',' && value[0] != ']') throw std::invalid_argument(error);
 					if (value[0] == ',')
 					{
 						result.value += ',';
 						value.erase(0, 1);
 					}
 				}
-				if (value.size() == 0 || value[0] != ']') throw std::invalid_argument("Input did not contain a valid array");
+				if (value.size() == 0 || value[0] != ']') throw std::invalid_argument(error);
 				result.value += ']';
 				value.erase(0, 1);
 				break;
@@ -397,17 +402,18 @@ namespace json
 				return std::vector<std::string>();
 			}
 			std::vector<std::string> result;
+			const char error[] = "Input was not properly formated";
 			while (value.size() > 0)
 			{
 				json::parsing::tlws(value);
 				json::parsing::parse_results parse_results = json::parsing::parse(value);
-				if (parse_results.type == json::jtype::not_valid) throw std::invalid_argument("Input was not properly formated");
+				if (parse_results.type == json::jtype::not_valid) throw std::invalid_argument(error);
 				result.push_back(parse_results.value);
 				json::parsing::tlws(value);
 				if (value[0] == ']') break;
 				if (value[0] == ',') value.erase(0, 1);
 			}
-			if (value[0] != ']') throw std::invalid_argument("Input was not properly formated");
+			if (value[0] != ']') throw std::invalid_argument(error);
 			value.erase(0, 1);
 			return result;
 		}
@@ -595,38 +601,39 @@ namespace json
 
 		inline static jobject parse(std::string &input)
 		{
+			const char error[] = "Input is not a valid object";
 			json::parsing::tlws(input);
-			if (input[0] != '{') throw std::invalid_argument("Input is not a valid object");
+			if (input[0] != '{') throw std::invalid_argument(error);
 			input.erase(0, 1);
 			json::parsing::tlws(input);
-			if (input.size() == 0) throw std::invalid_argument("Input is not a valid object");
+			if (input.size() == 0) throw std::invalid_argument(error);
 			json::jobject result;
 			while (input.size() > 0 && input[0] != '}')
 			{
 				// Get key
 				kvp entry;
 				json::parsing::parse_results key = json::parsing::parse(input);
-				if (key.type != json::jtype::jstring || key.value == "") throw std::invalid_argument("Input is not a valid object");
+				if (key.type != json::jtype::jstring || key.value == "") throw std::invalid_argument(error);
 				entry.first = key.value;
 
 				// Get value
 				json::parsing::tlws(input);
-				if (input[0] != ':') throw std::invalid_argument("Input is not a valid object");
+				if (input[0] != ':') throw std::invalid_argument(error);
 				input.erase(0, 1);
 				json::parsing::tlws(input);
 				json::parsing::parse_results value = json::parsing::parse(input);
-				if (value.type == json::jtype::not_valid) throw std::invalid_argument("Input is not a valid object");
+				if (value.type == json::jtype::not_valid) throw std::invalid_argument(error);
 				if (value.type == json::jtype::jstring) entry.second = "\"" + value.value + "\"";
 				else entry.second = value.value;
 
 				// Clean up
 				json::parsing::tlws(input);
-				if (input[0] != ',' && input[0] != '}') throw std::invalid_argument("Input is not a valid object");
+				if (input[0] != ',' && input[0] != '}') throw std::invalid_argument(error);
 				if (input[0] == ',') input.erase(0, 1);
 				result += entry;
 
 			}
-			if (input.size() == 0 || input[0] != '}') throw std::invalid_argument("Input did not contain a valid object");
+			if (input.size() == 0 || input[0] != '}') throw std::invalid_argument(error);
 			input.erase(0, 1);
 			return result;
 		}
