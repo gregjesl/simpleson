@@ -571,6 +571,28 @@ namespace json
 		};
 	public:
 		inline size_t size() { return std::vector<kvp>::size(); }
+
+		jobject& operator+=(kvp& other)
+		{
+			if (this->has_key(other.first)) throw std::invalid_argument("Key conflict");
+			this->push_back(other);
+		}
+
+		jobject& operator+=(jobject& other)
+		{
+			for (size_t i = 0; i < other.size(); i++)
+			{
+				*this += other.at(i);
+			}
+		}
+
+		jobject operator+(jobject& other)
+		{
+			jobject result = *this;
+			result += other;
+			return result;
+		}
+
 		inline static jobject parse(std::string &input)
 		{
 			json::parsing::tlws(input);
@@ -601,7 +623,7 @@ namespace json
 				json::parsing::tlws(input);
 				if (input[0] != ',' && input[0] != '}') throw std::invalid_argument("Input is not a valid object");
 				if (input[0] == ',') input.erase(0, 1);
-				result.push_back(entry);
+				result += entry;
 
 			}
 			if (input.size() == 0 || input[0] != '}') throw std::invalid_argument("Input did not contain a valid object");
@@ -650,22 +672,6 @@ namespace json
 			}
 			result.erase(result.size() - 1, 1);
 			result += "}";
-			return result;
-		}
-
-		jobject& operator+=(jobject& other)
-		{
-			for (size_t i = 0; i < other.size(); i++)
-			{
-				if (this->has_key(other.at(i).first)) throw std::invalid_argument("Key conflict");
-				this->push_back(other.at(i));
-			}
-		}
-
-		jobject operator+(jobject& other)
-		{
-			jobject result = *this;
-			result += other;
 			return result;
 		}
 	};
