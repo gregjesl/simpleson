@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <cstdio>
+#include <utility>
 #include <stdexcept>
 #include <cctype>
 
@@ -412,7 +413,9 @@ namespace json
 		}
 	}
 
-	class jobject : protected std::vector<std::vector<std::string> >
+	typedef std::pair<std::string, std::string> kvp;
+
+	class jobject : protected std::vector<kvp>
 	{
 		class proxy
 		{
@@ -567,6 +570,7 @@ namespace json
 
 		};
 	public:
+		inline size_t size() { return std::vector<kvp>::size(); }
 		inline static jobject parse(std::string &input)
 		{
 			json::parsing::tlws(input);
@@ -578,10 +582,10 @@ namespace json
 			while (input.size() > 0 && input[0] != '}')
 			{
 				// Get key
-				std::vector<std::string> kvp(2);
+				kvp entry;
 				json::parsing::parse_results key = json::parsing::parse(input);
 				if (key.type != json::jtype::jstring || key.value == "") throw std::invalid_argument("Input is not a valid object");
-				kvp[0] = key.value;
+				entry.first = key.value;
 
 				// Get value
 				json::parsing::tlws(input);
@@ -590,14 +594,14 @@ namespace json
 				json::parsing::tlws(input);
 				json::parsing::parse_results value = json::parsing::parse(input);
 				if (value.type == json::jtype::not_valid) throw std::invalid_argument("Input is not a valid object");
-				if (value.type == json::jtype::jstring) kvp[1] = "\"" + value.value + "\"";
-				else kvp[1] = value.value;
+				if (value.type == json::jtype::jstring) entry.second = "\"" + value.value + "\"";
+				else entry.second = value.value;
 
 				// Clean up
 				json::parsing::tlws(input);
 				if (input[0] != ',' && input[0] != '}') throw std::invalid_argument("Input is not a valid object");
 				if (input[0] == ',') input.erase(0, 1);
-				result.push_back(kvp);
+				result.push_back(entry);
 
 			}
 			if (input.size() == 0 || input[0] != '}') throw std::invalid_argument("Input did not contain a valid object");
@@ -606,28 +610,28 @@ namespace json
 		}
 		inline bool has_key(const std::string key)
 		{
-			for (size_t i = 0; i < this->size(); i++) if (this->at(i).at(0) == key) return true;
+			for (size_t i = 0; i < this->size(); i++) if (this->at(i).first == key) return true;
 			return false;
 		}
 		inline void set(const std::string key, const std::string value)
 		{
 			for (size_t i = 0; i < this->size(); i++)
 			{
-				if (this->at(i).at(0) == key)
+				if (this->at(i).first == key)
 				{
-					this->at(i)[1] = value;
+					this->at(i).second = value;
 					return;
 				}
 			}
-			std::vector<std::string> kvp(2);
-			kvp[0] = key;
-			kvp[1] = value;
-			this->push_back(kvp);
+			kvp entry;
+			entry.first = key;
+			entry.second = value;
+			this->push_back(entry);
 		}
 
 		inline std::string get(const std::string key)
 		{
-			for (size_t i = 0; i < this->size(); i++) if (this->at(i).at(0) == key) return this->at(i).at(1);
+			for (size_t i = 0; i < this->size(); i++) if (this->at(i).first == key) return this->at(i).second;
 			throw std::invalid_argument("Key not found");
 		}
 
@@ -642,10 +646,26 @@ namespace json
 			std::string result = "{";
 			for (size_t i = 0; i < this->size(); i++)
 			{
-				result += "\"" + this->at(i)[0] + "\":" + this->at(i)[1] + ",";
+				result += "\"" + this->at(i).first + "\":" + this->at(i).second + ",";
 			}
 			result.erase(result.size() - 1, 1);
 			result += "}";
+			return result;
+		}
+
+		jobject& operator+=(jobject& other)
+		{
+			for (size_t i = 0; i < other.size(); i++)
+			{
+				if (this->has_key(other.at(i).first)) throw std::invalid_argument("Key conflict");
+				this->push_back(other.at(i));
+			}
+		}
+
+		jobject operator+(jobject& other)
+		{
+			jobject result = *this;
+			result += other;
 			return result;
 		}
 	};
