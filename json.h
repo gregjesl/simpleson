@@ -582,14 +582,13 @@ namespace json
 		{
 			if (this->has_key(other.first)) throw std::invalid_argument("Key conflict");
 			this->push_back(other);
+			return *this;
 		}
 
 		jobject& operator+=(jobject& other)
 		{
-			for (size_t i = 0; i < other.size(); i++)
-			{
-				*this += other.at(i);
-			}
+			for (size_t i = 0; i < other.size(); i++) *this += other.at(i);
+			return *this;
 		}
 
 		jobject operator+(jobject& other)
