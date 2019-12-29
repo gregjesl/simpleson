@@ -657,7 +657,7 @@ namespace json
 			{
 				output = parse(input);
 			}
-			catch(std::exception)
+			catch(std::exception &ex)
 			{
 				return true;
 			}
