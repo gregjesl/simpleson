@@ -78,8 +78,11 @@ namespace json
 
 	typedef std::pair<std::string, std::string> kvp;
 
-	class jobject : protected std::vector<kvp>
+	class jobject
 	{
+	private:
+		std::vector<kvp> data;
+
 		class const_proxy
 		{
 		private:
@@ -252,27 +255,27 @@ namespace json
 			}
 		};
 	public:
-		inline size_t size() const { return std::vector<kvp>::size(); }
+		inline size_t size() const { return this->data.size(); }
 
-		inline void clear() { this->resize(0); }
+		inline void clear() { this->data.resize(0); }
 
 		jobject& operator+=(const kvp& other)
 		{
 			if (this->has_key(other.first)) throw json::parsing_error("Key conflict");
-			this->push_back(other);
+			this->data.push_back(other);
 			return *this;
 		}
 
 		jobject& operator+=(jobject& other)
 		{
-			for (size_t i = 0; i < other.size(); i++) *this += other.at(i);
+			for (size_t i = 0; i < other.size(); i++) this->data.push_back(other.data.at(i));
 			return *this;
 		}
 
 		jobject& operator+=(const jobject& other)
 		{
 			json::jobject copy(other);
-			for (size_t i = 0; i < copy.size(); i++) *this += copy.at(i);
+			for (size_t i = 0; i < copy.size(); i++) this->data.push_back(other.data.at(i));
 			return *this;
 		}
 
@@ -311,7 +314,7 @@ namespace json
 
 		inline bool has_key(const std::string &key) const
 		{
-			for (size_t i = 0; i < this->size(); i++) if (this->at(i).first == key) return true;
+			for (size_t i = 0; i < this->size(); i++) if (this->data.at(i).first == key) return true;
 			return false;
 		}
 
@@ -319,7 +322,7 @@ namespace json
 
 		inline std::string get(const std::string &key) const
 		{
-			for (size_t i = 0; i < this->size(); i++) if (this->at(i).first == key) return this->at(i).second;
+			for (size_t i = 0; i < this->size(); i++) if (this->data.at(i).first == key) return this->data.at(i).second;
 			throw json::invalid_key(key);
 		}
 

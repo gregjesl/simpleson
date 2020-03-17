@@ -418,25 +418,25 @@ void json::jobject::set(const std::string &key, const std::string &value)
 {
     for (size_t i = 0; i < this->size(); i++)
     {
-        if (this->at(i).first == key)
+        if (this->data.at(i).first == key)
         {
-            this->at(i).second = value;
+            this->data.at(i).second = value;
             return;
         }
     }
     kvp entry;
     entry.first = key;
     entry.second = value;
-    this->push_back(entry);
+    this->data.push_back(entry);
 }
 
 void json::jobject::remove(const std::string &key)
 {
     for (size_t i = 0; i < this->size(); i++)
     {
-        if (this->at(i).first == key)
+        if (this->data.at(i).first == key)
         {
-            this->erase(this->begin() + i, this->begin() + i + 1);
+            this->data.erase(this->data.begin() + i, this->data.begin() + i + 1);
         }
     }
 }
@@ -447,7 +447,7 @@ json::jobject::operator std::string() const
     std::string result = "{";
     for (size_t i = 0; i < this->size(); i++)
     {
-        result += "\"" + this->at(i).first + "\":" + this->at(i).second + ",";
+        result += "\"" + this->data.at(i).first + "\":" + this->data.at(i).second + ",";
     }
     result.erase(result.size() - 1, 1);
     result += "}";
