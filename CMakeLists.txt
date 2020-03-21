@@ -14,8 +14,16 @@ else()
     project(simpleson VERSION 2.0.0)
 
     add_library(${PROJECT_NAME}
-        ../json.cpp
+        json.cpp
     )
+
+    if(MSVC)
+        # ignore warnings about scanf
+        add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+        add_compile_options(/W4 /WX)
+    else()
+        add_compile_options(-Wall -Wextra -Werror)
+    endif()
 
     enable_testing()
     add_subdirectory (test)

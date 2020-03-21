@@ -1,6 +1,6 @@
 #include "json.h"
 
-char *test_data =
+const char *test_data =
 "{"
 "	\"_id\": \"5b8ae80aa0ad7bab287b087c\","
 "	\"index\" : 0,"

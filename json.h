@@ -255,6 +255,9 @@ namespace json
 			}
 		};
 	public:
+		inline jobject() { }
+		inline virtual ~jobject() { }
+
 		inline size_t size() const { return this->data.size(); }
 
 		inline void clear() { this->data.resize(0); }
@@ -300,7 +303,7 @@ namespace json
 			{
 				output = parse(input);
 			}
-			catch(std::exception ex)
+			catch(...)
 			{
 				return true;
 			}
