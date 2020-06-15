@@ -17,6 +17,8 @@ else()
         json.cpp
     )
 
+    target_include_directories(${PROJECT_NAME} PUBLIC inc)
+
     if(MSVC)
         # ignore warnings about scanf
         add_definitions(-D_CRT_SECURE_NO_WARNINGS)
