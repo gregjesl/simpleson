@@ -17,7 +17,7 @@ else()
         json.cpp
     )
 
-    target_include_directories(${PROJECT_NAME} PUBLIC inc)
+    target_include_directories(${PROJECT_NAME} PUBLIC .)
 
     if(MSVC)
         # ignore warnings about scanf
