@@ -4,7 +4,7 @@
 
 int main(void)
 {
-	std::string input =
+	const char *input =
 		"{"
 		"	\"number\":123.456,"
 		"	\"string\":\"hello \\\" world\","
@@ -57,7 +57,7 @@ int main(void)
 	test["subobj"] = subobj;
 
 	std::string serial = (std::string)test;
-	json::jobject retest = json::jobject::parse(serial);
+	json::jobject retest = json::jobject::parse(serial.c_str());
 	assert((int)retest["int"] == 123);
 	assert(fabs((float)retest["float"] - 12.3f) < 1.0e-6);
 	assert(retest["string"] == "test \"string");

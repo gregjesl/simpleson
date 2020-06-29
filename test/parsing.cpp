@@ -4,7 +4,7 @@
 int main(void)
 {
 	json::parsing::parse_results result;
-	std::string input;
+	const char *input = NULL;
 
 	// Parse string
 	input = " \t \n \v \f \r \"abc123 \\\"\"";
@@ -13,7 +13,7 @@ int main(void)
 	assert(result.value == "abc123 \\\"");
 
 	// Parse numbers
-	const std::string numbers[] = { "123", "-123", "123.456", "-123.456", "123e456", "123e+456", "123e-456", "123.456e789", "123.456e+789", "123.456e-789" };
+	const char *numbers[] = { "123", "-123", "123.456", "-123.456", "123e456", "123e+456", "123e-456", "123.456e789", "123.456e+789", "123.456e-789" };
 	for (int i = 0; i < 10; i++)
 	{
 		input = numbers[i];
@@ -47,7 +47,7 @@ int main(void)
 	assert(result.value == "[{\"hello\":\"world\"},{\"hello\":\"world\"},{\"hello\":\"world\"}]");
 
 	// Parse boolean
-	const std::string bools[] = { "true", "false" };
+	const char* bools[] = { "true", "false" };
 	for (int i = 0; i < 2; i++)
 	{
 		input = bools[i];

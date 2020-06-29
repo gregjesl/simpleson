@@ -1,16 +1,20 @@
 #include "json.h"
 
-void json::parsing::tlws(std::string &input)
+#define EMPTY_STRING(str) (*str == '\0')
+#define SKIP_WHITE_SPACE(str) { const char *next = json::parsing::tlws(str); str = next; }
+
+const char* json::parsing::tlws(const char *input)
 {
-    while (input.size() > 0 && std::isspace(input[0])) input.erase(0, 1);
+    const char *output = input;
+    while(!EMPTY_STRING(output) && std::isspace(*output)) output++;
+    return output;
 }
 
-json::jtype::jtype json::jtype::detect(const std::string &input)
+json::jtype::jtype json::jtype::detect(const char *input)
 {
-    std::string value(input);
-    json::parsing::tlws(value);
-    if (value.size() == 0) return json::jtype::not_valid;
-    switch (value.at(0))
+    const char *start = json::parsing::tlws(input);
+    if (EMPTY_STRING(start)) return json::jtype::not_valid;
+    switch (*start)
     {
     case '[':
         return json::jtype::jarray;
@@ -35,10 +39,10 @@ json::jtype::jtype json::jtype::detect(const std::string &input)
         return json::jtype::jnumber;
     case 't':
     case 'f':
-        return (value.substr(0, 4) == "true" || value.substr(0, 5) == "false") ? json::jtype::jbool : json::jtype::not_valid;
+        return (strncmp(start, "true", 4) == 0 || strncmp(start, "false", 5) == 0) ? json::jtype::jbool : json::jtype::not_valid;
         break;
     case 'n':
-        return (value.substr(0, 4) == "null") ? json::jtype::jnull : json::jtype::not_valid;
+        return (strncmp(start, "null", 4) == 0) ? json::jtype::jnull : json::jtype::not_valid;
         break;
     default:
         return json::jtype::not_valid;
@@ -46,43 +50,44 @@ json::jtype::jtype json::jtype::detect(const std::string &input)
     }
 }
 
-std::string json::parsing::read_digits(std::string &input)
+std::string json::parsing::read_digits(const char *input)
 {
     // Trim leading white space
-    json::parsing::tlws(input);
+    const char *index = json::parsing::tlws(input);
 
     // Initialize the result
     std::string result;
 
     // Loop until all digits are read
     while (
-        input.size() > 0 &&
+        !EMPTY_STRING(index) &&
         (
-            input.at(0) == '0' ||
-            input.at(0) == '1' ||
-            input.at(0) == '2' ||
-            input.at(0) == '3' ||
-            input.at(0) == '4' ||
-            input.at(0) == '5' ||
-            input.at(0) == '6' ||
-            input.at(0) == '7' ||
-            input.at(0) == '8' ||
-            input.at(0) == '9'
+            *index == '0' ||
+            *index == '1' ||
+            *index == '2' ||
+            *index == '3' ||
+            *index == '4' ||
+            *index == '5' ||
+            *index == '6' ||
+            *index == '7' ||
+            *index == '8' ||
+            *index == '9'
             )
         )
     {
-        result += input[0];
-        input.erase(0, 1);
+        result += *index;
+        index++;
     }
 
     // Return the result
     return result;
 }
 
-std::string json::parsing::escape_quotes(const std::string &input)
+std::string json::parsing::escape_quotes(const char *input)
 {
     std::string parsed;
-    for (size_t i = 0; i < input.size(); i++)
+    const size_t len = strlen(input);
+    for (size_t i = 0; i < len; i++)
     {
         if (input[i] == '\"' && parsed[parsed.size() - 1] != '\\')
         {
@@ -93,120 +98,123 @@ std::string json::parsing::escape_quotes(const std::string &input)
     return parsed;
 }
 
-std::string json::parsing::unescape_quotes(const std::string &input)
+std::string json::parsing::unescape_quotes(const char *input)
 {
     std::string result;
-    std::string value(input);
-    while (value.size() > 0)
+    const char *index = input;
+    while (!EMPTY_STRING(index))
     {
-        if (value.size() > 1 && value[0] == '\\' && value[1] == '\"')
+        if (strlen(index) > 1 && *index == '\\' && index[1] == '\"')
         {
             result += '\"';
-            value.erase(0, 2);
+            index += 2;
         }
         else
         {
-            result += value[0];
-            value.erase(0, 1);
+            result.push_back(*index);
+            index++;
         }
     }
     return result;
 }
 
-json::parsing::parse_results json::parsing::parse(std::string &value)
+json::parsing::parse_results json::parsing::parse(const char *input)
 {
     // Strip white space
-    json::parsing::tlws(value);
+    const char *index = json::parsing::tlws(input);
 
     // Validate input
-    if (value.size() == 0) throw json::parsing_error("Input was only whitespace");
+    if (EMPTY_STRING(index)) throw json::parsing_error("Input was only whitespace");
 
     // Initialize the output
     json::parsing::parse_results result;
 
     // Detect the type
-    result.type = json::jtype::detect(value);
+    result.type = json::jtype::detect(index);
 
     // Parse the values
     switch (result.type)
     {
     case json::jtype::jstring:
         // Validate the input
-        if (value[0] != '"') throw json::parsing_error("Expected '\"' as first character");
+        if (*index != '"') throw json::parsing_error("Expected '\"' as first character");
 
         // Remove the opening quote
-        value.erase(0, 1);
+        index++;
 
         // Copy the string
-        while (value.size() > 0)
+        while (!EMPTY_STRING(index))
         {
-            if (value[0] != '"' || (result.value.size() > 0 && result.value[result.value.size() - 1] == '\\'))
+            if (*index != '"' || (result.value.size() > 0 && result.value[result.value.size() - 1] == '\\'))
             {
-                result.value.push_back(value[0]);
-                value.erase(0, 1);
+                result.value.push_back(*index);
+                index++;
             }
             else
             {
                 break;
             }
         }
-        if (value.size() == 0 || value[0] != '"') result.type = json::jtype::not_valid;
-        else value.erase(0, 1);
+        if (EMPTY_STRING(index) || *index != '"') result.type = json::jtype::not_valid;
+        else index++;
         break;
     case json::jtype::jnumber:
     {
         const char error[] = "Input did not contain a valid number";
 
-        if (value.at(0) == '-')
+        if (*index == '-')
         {
-            result.value += "-";
-            value.erase(0, 1);
+            result.value.push_back('-');
+            index++;
         }
 
-        if (value.length() < 1) throw json::parsing_error(error);
+        if (EMPTY_STRING(index)) throw json::parsing_error(error);
 
         // Read the whole digits
-        std::string whole_digits = json::parsing::read_digits(value);
+        std::string whole_digits = json::parsing::read_digits(index);
 
         // Validate the read
         if (whole_digits.length() == 0) throw json::parsing_error(error);
 
         // Tack on the value
         result.value += whole_digits;
+        index += whole_digits.length();
 
         // Check for decimal number
-        if (value[0] == '.')
+        if (*index == '.')
         {
-            result.value += ".";
-            value.erase(0, 1);
-            std::string decimal_digits = json::parsing::read_digits(value);
+            result.value.push_back('.');
+            index++;
+            std::string decimal_digits = json::parsing::read_digits(index);
 
-            if (decimal_digits.length() < 1) throw json::parsing_error(error);
+            if (decimal_digits.length() == 0) throw json::parsing_error(error);
 
             result.value += decimal_digits;
+            index += decimal_digits.size();
         }
 
         // Check for exponential number
-        if (value[0] == 'e' || value[0] == 'E')
+        if (*index == 'e' || *index == 'E')
         {
-            result.value += value[0];
-            value.erase(0, 1);
+            result.value.push_back(*index);
+            index++;
 
-            if (value.size() == 0) throw json::parsing_error(error);
+            if (EMPTY_STRING(index)) throw json::parsing_error(error);
 
-            if (value[0] == '+' || value[0] == '-')
+            if (*index == '+' || *index == '-')
             {
-                result.value += value[0];
-                value.erase(0, 1);
+                result.value.push_back(*index);
+                index++;
             }
 
-            if (value.size() == 0) throw json::parsing_error(error);
+            if (EMPTY_STRING(index)) throw json::parsing_error(error);
 
-            std::string exponential_digits = json::parsing::read_digits(value);
+            std::string exponential_digits = json::parsing::read_digits(index);
 
             if (exponential_digits.size() == 0) throw json::parsing_error(error);
 
             result.value += exponential_digits;
+            index += exponential_digits.size();
         }
         break;
     }
@@ -215,94 +223,93 @@ json::parsing::parse_results json::parsing::parse(std::string &value)
         const char error[] = "Input did not contain a valid object";
 
         // The first character should be an open bracket
-        if (value[0] != '{') throw json::parsing_error(error);
+        if (*index != '{') throw json::parsing_error(error);
         result.value += '{';
-        value.erase(0, 1);
-        json::parsing::tlws(value);
+        index++;
+        SKIP_WHITE_SPACE(index);
 
         // Loop until the closing bracket is encountered
-        while (value.size() > 0 && value[0] != '}')
+        while (!EMPTY_STRING(index) && *index != '}')
         {
             // Read the key
-            json::parsing::parse_results key = json::parsing::parse(value);
+            json::parsing::parse_results key = json::parsing::parse(index);
 
             // Validate that the key is a string
             if (key.type != json::jtype::jstring) throw json::parsing_error(error);
 
             // Store the key
-            result.value += "\"" + json::parsing::escape_quotes(key.value) + "\"";
-            json::parsing::tlws(value);
+            result.value += "\"" + json::parsing::escape_quotes(key.value.c_str()) + "\"";
+            index = json::parsing::tlws(key.remainder);
 
             // Look for the colon
-            if (value[0] != ':') throw json::parsing_error(error);
-            result.value += ':';
-            value.erase(0, 1);
+            if (*index != ':') throw json::parsing_error(error);
+            result.value.push_back(':');
+            index++;
 
             // Get the value
-            json::parsing::parse_results subvalue = json::parsing::parse(value);
+            json::parsing::parse_results subvalue = json::parsing::parse(index);
 
             // Validate the value type
             if (subvalue.type == json::jtype::not_valid) throw json::parsing_error(error);
 
             // Store the value
-            if (subvalue.type == json::jtype::jstring) result.value += "\"" + json::parsing::escape_quotes(subvalue.value) + "\"";
+            if (subvalue.type == json::jtype::jstring) result.value += "\"" + json::parsing::escape_quotes(subvalue.value.c_str()) + "\"";
             else result.value += subvalue.value;
-            json::parsing::tlws(value);
+            index = json::parsing::tlws(subvalue.remainder);
 
             // Validate format
-            if (value[0] != ',' && value[0] != '}') throw json::parsing_error(error);
+            if (*index != ',' && *index != '}') throw json::parsing_error(error);
 
             // Check for next line
-            if (value[0] == ',')
+            if (*index == ',')
             {
-                result.value += ',';
-                value.erase(0, 1);
+                result.value.push_back(',');
+                index++;
             }
         }
-        if (value.size() == 0 || value[0] != '}') throw json::parsing_error(error);
+        if (*index != '}') throw json::parsing_error(error);
         result.value += '}';
-        value.erase(0, 1);
+        index++;
         break;
     }
     case json::jtype::jarray:
     {
         const char error[] = "Input did not contain a valid array";
-        if (value[0] != '[') throw json::parsing_error(error);
+        if (*index != '[') throw json::parsing_error(error);
         result.value += '[';
-        value.erase(0, 1);
-        json::parsing::tlws(value);
-        if (value.size() == 0) throw json::parsing_error(error);
-        while (value.size() > 0 && value[0] != ']')
+        index++;
+        SKIP_WHITE_SPACE(index);
+        if (EMPTY_STRING(index)) throw json::parsing_error(error);
+        while (!EMPTY_STRING(index) && *index != ']')
         {
-            json::parsing::parse_results array_value = json::parsing::parse(value);
+            json::parsing::parse_results array_value = json::parsing::parse(index);
             if (array_value.type == json::jtype::not_valid) throw json::parsing_error(error);
-            if (array_value.type == json::jtype::jstring) result.value += "\"" + json::parsing::escape_quotes(array_value.value) + "\"";
+            if (array_value.type == json::jtype::jstring) result.value += "\"" + json::parsing::escape_quotes(array_value.value.c_str()) + "\"";
             else result.value += array_value.value;
-            json::parsing::tlws(value);
-            if (value[0] != ',' && value[0] != ']') throw json::parsing_error(error);
-            if (value[0] == ',')
+            index = json::parsing::tlws(array_value.remainder);
+            if (*index != ',' && *index != ']') throw json::parsing_error(error);
+            if (*index == ',')
             {
-                result.value += ',';
-                value.erase(0, 1);
+                result.value.push_back(',');
+                index++;
             }
         }
-        if (value.size() == 0 || value[0] != ']') throw json::parsing_error(error);
-        result.value += ']';
-        value.erase(0, 1);
+        if (*index != ']') throw json::parsing_error(error);
+        result.value.push_back(']');
+        index++;
         break;
     }
     case json::jtype::jbool:
     {
-        if (value.size() < 4) throw json::parsing_error("Input did not contain a valid boolean");
-        if (value.substr(0, 4).compare("true") == 0)
+        if (strncmp(index, "true", 4) == 0)
         {
             result.value += "true";
-            value.erase(0, 4);
+            index += 4;
         }
-        else if (value.size() > 4 && value.substr(0, 5).compare("false") == 0)
+        else if (strncmp(index, "false", 4) == 0)
         {
             result.value += "false";
-            value.erase(0, 5);
+            index += 5;
         }
         else
         {
@@ -312,11 +319,10 @@ json::parsing::parse_results json::parsing::parse(std::string &value)
     }
     case json::jtype::jnull:
     {
-        if (value.size() < 4) throw json::parsing_error("Input did not contain a valid null");
-        if (value.substr(0, 4) == "null")
+        if (strncmp(index, "null", 4) == 0)
         {
             result.value += "null";
-            value.erase(0, 4);
+            index+= 4;
         }
         else
         {
@@ -329,35 +335,36 @@ json::parsing::parse_results json::parsing::parse(std::string &value)
         break;
     }
 
+    result.remainder = index;
     return result;
 }
 
-std::vector<std::string> json::parsing::parse_array(std::string value)
+std::vector<std::string> json::parsing::parse_array(const char *input)
 {
-    json::parsing::tlws(value);
-    if (value[0] != '[') throw json::parsing_error("Input was not an array");
-    value.erase(0, 1);
-    json::parsing::tlws(value);
-    if (value[0] == ']')
-    {
-        // Empty array
-        value.erase(0, 1);
-        return std::vector<std::string>();
-    }
+    // Initalize the result
     std::vector<std::string> result;
-    const char error[] = "Input was not properly formated";
-    while (value.size() > 0)
+
+    const char *index = json::parsing::tlws(input);
+    if (*index != '[') throw json::parsing_error("Input was not an array");
+    index++;
+    SKIP_WHITE_SPACE(index);
+    if (*index == ']')
     {
-        json::parsing::tlws(value);
-        json::parsing::parse_results parse_results = json::parsing::parse(value);
+        return result;
+    }
+    const char error[] = "Input was not properly formated";
+    while (!EMPTY_STRING(index))
+    {
+        SKIP_WHITE_SPACE(index);
+        json::parsing::parse_results parse_results = json::parsing::parse(index);
         if (parse_results.type == json::jtype::not_valid) throw json::parsing_error(error);
         result.push_back(parse_results.value);
-        json::parsing::tlws(value);
-        if (value[0] == ']') break;
-        if (value[0] == ',') value.erase(0, 1);
+        index = json::parsing::tlws(parse_results.remainder);
+        if (*index == ']') break;
+        if (*index == ',') index++;
     }
-    if (value[0] != ']') throw json::parsing_error(error);
-    value.erase(0, 1);
+    if (*index != ']') throw json::parsing_error(error);
+    index++;
     return result;
 }
 
@@ -366,7 +373,7 @@ void json::jobject::proxy::set_array(const std::vector<std::string> &values, con
     std::string value = "[";
     for (size_t i = 0; i < values.size(); i++)
     {
-        if (wrap) value += "\"" + json::parsing::escape_quotes(values[i]) + "\",";
+        if (wrap) value += "\"" + json::parsing::escape_quotes(values[i].c_str()) + "\",";
         else value += values[i] + ",";
     }
     if(values.size() > 0) value.erase(value.size() - 1, 1);
@@ -374,43 +381,44 @@ void json::jobject::proxy::set_array(const std::vector<std::string> &values, con
     this->sink.set(key, value);
 }
 
-json::jobject json::jobject::parse(const std::string &input)
+json::jobject json::jobject::parse(const char *input)
 {
-    std::string temp(input);
     const char error[] = "Input is not a valid object";
-    json::parsing::tlws(temp);
-    if (temp[0] != '{') throw json::parsing_error(error);
-    temp.erase(0, 1);
-    json::parsing::tlws(temp);
-    if (temp.size() == 0) throw json::parsing_error(error);
+    const char *index = json::parsing::tlws(input);
+    if (*index != '{') throw json::parsing_error(error);
+    index++;
+    SKIP_WHITE_SPACE(index);
+    if (EMPTY_STRING(index)) throw json::parsing_error(error);
     json::jobject result;
-    while (temp.size() > 0 && temp[0] != '}')
+    while (!EMPTY_STRING(index) && *index != '}')
     {
         // Get key
         kvp entry;
-        json::parsing::parse_results key = json::parsing::parse(temp);
+        json::parsing::parse_results key = json::parsing::parse(index);
         if (key.type != json::jtype::jstring || key.value == "") throw json::parsing_error(error);
         entry.first = key.value;
+        index = key.remainder;
 
         // Get value
-        json::parsing::tlws(temp);
-        if (temp[0] != ':') throw json::parsing_error(error);
-        temp.erase(0, 1);
-        json::parsing::tlws(temp);
-        json::parsing::parse_results value = json::parsing::parse(temp);
+        SKIP_WHITE_SPACE(index);
+        if (*index != ':') throw json::parsing_error(error);
+        index++;
+        SKIP_WHITE_SPACE(index);
+        json::parsing::parse_results value = json::parsing::parse(index);
         if (value.type == json::jtype::not_valid) throw json::parsing_error(error);
         if (value.type == json::jtype::jstring) entry.second = "\"" + value.value + "\"";
         else entry.second = value.value;
+        index = value.remainder;
 
         // Clean up
-        json::parsing::tlws(temp);
-        if (temp[0] != ',' && temp[0] != '}') throw json::parsing_error(error);
-        if (temp[0] == ',') temp.erase(0, 1);
+        SKIP_WHITE_SPACE(index);
+        if (*index != ',' && *index != '}') throw json::parsing_error(error);
+        if (*index == ',') index++;
         result += entry;
 
     }
-    if (temp.size() == 0 || temp[0] != '}') throw json::parsing_error(error);
-    temp.erase(0, 1);
+    if (EMPTY_STRING(index) || *index != '}') throw json::parsing_error(error);
+    index++;
     return result;
 }
 

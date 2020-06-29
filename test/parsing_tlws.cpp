@@ -4,14 +4,10 @@
 int main(void)
 {
 	// Test parsing
-	std::string test_string = " \t \n \v \f \r abc123";
+	const char *test_string = " \t \n \v \f \r abc123";
+	assert(std::string(json::parsing::tlws(test_string)) == std::string("abc123"));
 	json::parsing::tlws(test_string);
-	assert(test_string == std::string("abc123"));
-	json::parsing::tlws(test_string);
-	assert(test_string == std::string("abc123"));
+	assert(std::string(json::parsing::tlws(test_string)) == std::string("abc123"));
 	test_string = " \t \n \v \f \r";
-	json::parsing::tlws(test_string);
-	assert(test_string == std::string(""));
-
-
+	assert(std::string(json::parsing::tlws(test_string)) == std::string(""));
 }

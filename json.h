@@ -33,35 +33,36 @@ namespace json
 
 	namespace parsing
 	{
-		void tlws(std::string &input);
+		const char* tlws(const char *start);
 	}
 
 	/* Data types */
 	namespace jtype
 	{
 		enum jtype { jstring, jnumber, jobject, jarray, jbool, jnull, not_valid };
-		jtype detect(const std::string &input);
+		jtype detect(const char *input);
 	}
 
 	namespace parsing
 	{
-		std::string read_digits(std::string &input);
-		std::string escape_quotes(const std::string &input);
-		std::string unescape_quotes(const std::string &input);
+		std::string read_digits(const char *input);
+		std::string escape_quotes(const char *input);
+		std::string unescape_quotes(const char *input);
 
 		struct parse_results
 		{
 			jtype::jtype type;
 			std::string value;
+			const char *remainder;
 		};
 
-		parse_results parse(std::string &value);
+		parse_results parse(const char *input);
 		
 		template <typename T>
-		T get_number(const std::string &number, const char* format)
+		T get_number(const char *input, const char* format)
 		{
 			T result;
-			std::sscanf(number.c_str(), format, &result);
+			std::sscanf(input, format, &result);
 			return result;
 		}
 
@@ -73,7 +74,7 @@ namespace json
 			return std::string(cstr);
 		}
 
-		std::vector<std::string> parse_array(std::string value);
+		std::vector<std::string> parse_array(const char *input);
 	}
 
 	typedef std::pair<std::string, std::string> kvp;
@@ -92,17 +93,17 @@ namespace json
 			template<typename T>
 			inline T get_number(const char* format) const
 			{
-				return json::parsing::get_number<T>(this->source.get(key), format);
+				return json::parsing::get_number<T>(this->source.get(key).c_str(), format);
 			}
 			template<typename T>
 			inline std::vector<T> get_number_array(const char* format) const
 			{
 				std::string value = this->source.get(key);
-				std::vector<std::string> numbers = json::parsing::parse_array(value);
+				std::vector<std::string> numbers = json::parsing::parse_array(value.c_str());
 				std::vector<T> result;
 				for (size_t i = 0; i < numbers.size(); i++)
 				{
-					result.push_back(json::parsing::get_number<T>(numbers[i], format));
+					result.push_back(json::parsing::get_number<T>(numbers[i].c_str(), format));
 				}
 				return result;
 			}
@@ -111,8 +112,8 @@ namespace json
 
 			operator std::string() const 
 			{
-				std::string value = source.get(key);
-				return json::parsing::unescape_quotes(json::parsing::parse(value).value);
+				const std::string value = source.get(key);
+				return json::parsing::unescape_quotes(json::parsing::parse(value.c_str()).value.c_str());
 			}
 
 			bool operator== (const std::string other) const { return ((std::string)(*this)) == other; }
@@ -130,8 +131,8 @@ namespace json
 			// Objects
 			inline operator json::jobject() const
 			{
-				std::string value = this->source.get(key);
-				return json::jobject::parse(value);
+				const std::string value = this->source.get(key);
+				return json::jobject::parse(value.c_str());
 			}
 
 			// Arrays
@@ -144,26 +145,26 @@ namespace json
 			operator std::vector<double>() const { return this->get_number_array<double>("%f"); }
 			operator std::vector<json::jobject>() const
 			{
-				std::vector<std::string> objs = json::parsing::parse_array(this->source.get(key));
+				const std::vector<std::string> objs = json::parsing::parse_array(this->source.get(key).c_str());
 				std::vector<json::jobject> results;
-				for (size_t i = 0; i < objs.size(); i++) results.push_back(json::jobject::parse(objs[i]));
+				for (size_t i = 0; i < objs.size(); i++) results.push_back(json::jobject::parse(objs[i].c_str()));
 				return results;
 			}
-			operator std::vector<std::string>() const { return json::parsing::parse_array(this->source.get(key)); }
+			operator std::vector<std::string>() const { return json::parsing::parse_array(this->source.get(key).c_str()); }
 
 			// Boolean
 			inline bool is_true() const
 			{
-				std::string value = this->source.get(key);
-				json::parsing::parse_results result = json::parsing::parse(value);
+				const std::string value = this->source.get(key);
+				json::parsing::parse_results result = json::parsing::parse(value.c_str());
 				return (result.type == json::jtype::jbool && result.value == "true");
 			}
 
 			// Null
 			inline bool is_null() const
 			{
-				std::string value = this->source.get(key);
-				json::parsing::parse_results result = json::parsing::parse(value);
+				const std::string value = this->source.get(key);
+				json::parsing::parse_results result = json::parsing::parse(value.c_str());
 				return result.type == json::jtype::jnull;
 			}
 		};
@@ -199,7 +200,7 @@ namespace json
 			// Strings
 			inline void operator= (const std::string value)
 			{
-				this->sink.set(this->key, "\"" + json::parsing::escape_quotes(value) + "\"");
+				this->sink.set(this->key, "\"" + json::parsing::escape_quotes(value.c_str()) + "\"");
 			}
 
 			// Numbers
@@ -289,15 +290,11 @@ namespace json
 			return result;
 		}
 
-		static jobject parse(const std::string &input);
-
-		inline static jobject parse(const char* input)
-		{
-			return parse(std::string(input));
-		}
+		static jobject parse(const char *input);
+		static inline jobject parse(const std::string input) { return parse(input.c_str()); }
 
 		// Returns true if a json parsing error occured
-		inline bool static tryparse(const std::string &input, jobject &output)
+		inline bool static tryparse(const char *input, jobject &output)
 		{
 			try
 			{
@@ -308,11 +305,6 @@ namespace json
 				return true;
 			}
 			return false;
-		}
-
-		inline bool static tryparse(const char* input, jobject &output)
-		{
-			return tryparse(std::string(input), output);
 		}
 
 		inline bool has_key(const std::string &key) const
