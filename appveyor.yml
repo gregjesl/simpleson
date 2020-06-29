@@ -1,6 +1,7 @@
 image:
 - Visual Studio 2017
 - Ubuntu
+- macos
 
 platform:
   - x86
@@ -9,11 +10,6 @@ platform:
 configuration:
 - Debug
 - Release
-
-matrix:
-  exclude:
-    - image: Visual Studio 2017
-      configuration: Release
 
 for:
   - 
