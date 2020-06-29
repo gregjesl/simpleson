@@ -1,4 +1,5 @@
 #include "json.h"
+#include <string.h>
 
 #define EMPTY_STRING(str) (*str == '\0')
 #define SKIP_WHITE_SPACE(str) { const char *next = json::parsing::tlws(str); str = next; }
