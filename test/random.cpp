@@ -1,4 +1,5 @@
 #include "json.h"
+#include "test.h"
 
 const char *test_data =
 "{"
@@ -50,4 +51,8 @@ const char *test_data =
 int main(void)
 {
 	json::jobject test_parse = json::jobject::parse(test_data);
+	TEST_EQUAL(test_parse.size(), 22);
+	const std::string echo_str = test_parse.as_string();
+	json::jobject echo = json::jobject::parse(echo_str);
+	TEST_EQUAL(echo.size(), 22);
 }

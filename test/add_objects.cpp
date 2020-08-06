@@ -1,5 +1,5 @@
 #include "json.h"
-#include "assert.h"
+#include "test.h"
 
 int main(void)
 {
@@ -10,21 +10,21 @@ int main(void)
 
 	obj1 += obj2;
 
-	assert(obj1.size() == 2);
-	assert(obj1.has_key("key1"));
-	assert(obj1["key1"] == "value1");
-	assert(obj1.has_key("key2"));
-	assert(obj1["key2"] == "value2");
+	TEST_EQUAL(obj1.size(), 2);
+	TEST_TRUE(obj1.has_key("key1"));
+	TEST_STRING_EQUAL(obj1["key1"].as_string().c_str(), "value1");
+	TEST_TRUE(obj1.has_key("key2"));
+	TEST_STRING_EQUAL(obj1["key2"].as_string().c_str(), "value2");
 
 	json::jobject obj3;
 	obj3["key3"] = "value3";
 
 	json::jobject obj4 = obj1 + obj3;
-	assert(obj4.size() == 3);
-	assert(obj4.has_key("key1"));
-	assert(obj4["key1"] == "value1");
-	assert(obj4.has_key("key2"));
-	assert(obj4["key2"] == "value2");
-	assert(obj4.has_key("key3"));
-	assert(obj4["key3"] == "value3");
+	TEST_EQUAL(obj4.size(), 3);
+	TEST_TRUE(obj4.has_key("key1"));
+	TEST_STRING_EQUAL(obj4["key1"].as_string().c_str(), "value1");
+	TEST_TRUE(obj4.has_key("key2"));
+	TEST_STRING_EQUAL(obj4["key2"].as_string().c_str(), "value2");
+	TEST_TRUE(obj4.has_key("key3"));
+	TEST_STRING_EQUAL(obj4["key3"].as_string().c_str(), "value3");
 }
