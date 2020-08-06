@@ -165,7 +165,7 @@ namespace json
 			template<typename T>
 			inline std::vector<T> as_array() const
 			{
-				return this->operator std::vector<T>();
+				return (std::vector<T>)(*this);
 			}
 
 			// Boolean
