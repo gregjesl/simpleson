@@ -110,10 +110,15 @@ namespace json
 		public:
 			const_proxy(const jobject &source, const std::string key) : source(source), key(key) { }
 
-			operator std::string() const 
+			inline std::string as_string() const
 			{
 				const std::string value = source.get(key);
 				return json::parsing::unescape_quotes(json::parsing::parse(value.c_str()).value.c_str());
+			}
+
+			inline operator std::string() const 
+			{
+				return this->as_string();
 			}
 
 			bool operator== (const std::string other) const { return ((std::string)(*this)) == other; }
@@ -129,10 +134,15 @@ namespace json
 			operator double() const { return this->get_number<double>("%lf"); }
 
 			// Objects
-			inline operator json::jobject() const
+			inline json::jobject as_object() const
 			{
 				const std::string value = this->source.get(key);
 				return json::jobject::parse(value.c_str());
+			}
+
+			inline operator json::jobject() const
+			{
+				return this->as_object();
 			}
 
 			// Arrays
@@ -151,6 +161,12 @@ namespace json
 				return results;
 			}
 			operator std::vector<std::string>() const { return json::parsing::parse_array(this->source.get(key).c_str()); }
+
+			template<typename T>
+			inline std::vector<T> as_array() const
+			{
+				return this->operator std::vector<T>();
+			}
 
 			// Boolean
 			inline bool is_true() const
@@ -334,6 +350,11 @@ namespace json
 		}
 
 		operator std::string() const;
+
+		inline std::string as_string() const
+		{
+			return this->operator std::string();
+		}
 	};
 }
 
