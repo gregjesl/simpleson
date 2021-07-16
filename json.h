@@ -279,6 +279,9 @@ namespace json
 
 		inline void clear() { this->data.resize(0); }
 
+		bool operator== (const json::jobject other) const { return ((std::string)(*this)) == (std::string)other; }
+		bool operator!= (const json::jobject other) const { return ((std::string)(*this)) != (std::string)other; }
+
 		jobject& operator+=(const kvp& other)
 		{
 			if (this->has_key(other.first)) throw json::parsing_error("Key conflict");
