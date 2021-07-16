@@ -50,6 +50,8 @@ int main(void)
 	std::string test_string_array[2] = { "hello", "world" };
 	test["strarray"] = std::vector<std::string>(test_string_array, test_string_array + 2);
 	test["emptyarray"] = std::vector<std::string>();
+	test["boolean"].set_boolean(true);
+	test["null"].set_null();
 
 	json::jobject subobj;
 	char world[6] = "world";
@@ -71,4 +73,9 @@ int main(void)
 	TEST_STRING_EQUAL(strarray[1].c_str(), "world");
 	emptyarray = retest["emptyarray"];
 	TEST_EQUAL(emptyarray.size(), 0);
+	TEST_TRUE(test.has_key("boolean"));
+	TEST_TRUE(test["boolean"].is_true());
+	TEST_TRUE(test.has_key("null"));
+	TEST_TRUE(test["null"].is_null());
+	TEST_FALSE(test["boolean"].is_null());
 }
