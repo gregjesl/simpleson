@@ -58,6 +58,11 @@ int main(void)
 	subobj["hello"] = world;
 	test["subobj"] = subobj;
 
+	std::vector<json::jobject> objarray;
+	objarray.push_back(subobj);
+	objarray.push_back(subobj);
+	test["objarray"] = objarray;
+
 	std::string serial = (std::string)test;
 	json::jobject retest = json::jobject::parse(serial.c_str());
 	TEST_EQUAL((int)retest["int"], 123);
@@ -78,4 +83,6 @@ int main(void)
 	TEST_TRUE(test.has_key("null"));
 	TEST_TRUE(test["null"].is_null());
 	TEST_FALSE(test["boolean"].is_null());
+	std::vector<json::jobject> objarrayecho = test["objarray"];
+	TEST_EQUAL(objarrayecho.size(), 2);
 }
