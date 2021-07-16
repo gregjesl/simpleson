@@ -36,11 +36,18 @@ json::jobject result = json::jobject::parse(input);
 // Get a value
 std::string value = (std::string)result.get_entry("hello").value
 
-// Add entry
-json::key_value_pair item;
-item.key = "new_key";
-item.value = json::jvalue(123.4);
-result.push_back(item);
+// Add entries
+json::jobject example;
+example["int"] = 123;
+example["float"] = 12.3f;
+example["string"] = "test string";
+int test_array[3] = { 1, 2, 3 };
+example["array"] = std::vector<int>(test_array, test_array + 3);
+std::string test_string_array[2] = { "hello", "world" };
+example["strarray"] = std::vector<std::string>(test_string_array, test_string_array + 2);
+example["emptyarray"] = std::vector<std::string>();
+example["boolean"].set_boolean(true);
+example["null"].set_null();
 
 // Serialize the new object
 std::string serial = (std::string)result;
@@ -48,24 +55,16 @@ std::string serial = (std::string)result;
 
 ## Using simpleson
 
-The namespace of simpleson is simply `json`.  JSON objects can be parsed by calling `json::jobject::parse()`, which returns a `jobject`.  The `jobject` class is simply an extension of a vector of [key-value pairs](#key-value-pairs).  Useful methods of `jobject` include:
-- `has_key("key")`
-- `get_keys()`
-- `get_entry("key")`
+The namespace of simpleson is simply `json`.  JSON objects can be parsed by calling `json::jobject::parse()`, which takes a string and returns a `jobject`. The array operators are overloaded for `jobject`, meaning you can assign and access entries using the `[]` operators like many other software languages. Other useful methods of `jobject` include:
+- `has_key("key")` - Returns true if the key exists in the `jobject`
+- `remove("key")` - Removes they entry associated with the key if the key exists in the `jobject`
+- `clear()` - Removes all entries in the `jobject`
+- `["key"].set_boolean(true)` - [Sets the key to the boolean value](#a-note-on-booleans)
+- `["key"].set_null()` - Sets the value associated with the key to null
+- `["key"].is_true()` - Returns true if the boolean value associated with the key is true
+- `["key"].is_null()` - Returns true if the value associated with the key is null
 
 An instance of `jobject` can be searlized by casting it to a `std::string`.  Note that an instance of `jobject` does not retain it's original formatting (it drops tabs, spaces outside strings, and newlines).  
 
-You can build your own `jobject` from scratch by creating a fresh instance of `jobject` and then pushing (`push_back`) key-value pairs into it.  
-
 ### A note on booleans
-Booleans are handled a bit differently than other data types. Since everything can be cast to a boolean, having an implicit boolean operator meant everything goes to a boolean! Instead, **`jvalue` objects of type `jbool` are created using the `jvalue::jbool(const bool)` static method.** If you do not use this method and instead directly create/assign a boolean to a `jvalue` object, then the boolean will be cast to a `jnumber` type with a value of 0 or 1. 
-
-### Key-value pairs
-A key-value pair is just that: a key and a value; the members `key` and `value` of `json::key_value_pair` are public.  The `key` member is simply the string of the key whie the `value` member is a `jvalue` instance.  A `jvalue` instance can be casted to `int`, `long`, `double`, `float`, `std::string`, and `json::jarray` depending on the type of value it holds.  
-
-You can check the type of value by calling `get_type()` on the value.  
-
-You can deserialze a nested object by calling `json::jobject::parse(parent.get_entry("child").value)`.  
-
-### Arrays
-Simpleson includes a class called `jarray`, which is an extension of a vector of strings.  You can create an instance of `jarray` by parsing a string via `json::jarray::parse(input)`.  An instance of `jarray` can also be casted to `std::vector<int>`, `std::vector<long>`, `std::vector<double>`, and `std::vector<float>`.  
+Booleans are handled a bit differently than other data types. Since everything can be cast to a boolean, having an implicit boolean operator meant everything goes to a boolean! Instead, **boolean values are set by using the `set_boolean()` method**. If you do not use this method and instead directly create/assign a boolean to a `jobject` array entry, then the boolean will be cast to an int with a value of 0 or 1. Similarly, you can check if a value is set to true or false using the `is_true()` method. 
