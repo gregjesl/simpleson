@@ -84,22 +84,21 @@ namespace json
 	private:
 		std::vector<kvp> data;
 
-		class const_proxy
+		class entry
 		{
-		private:
-			const jobject &source;
 		protected:
-			const std::string key;
+			virtual const std::string& ref() const = 0;
+
 			template<typename T>
 			inline T get_number(const char* format) const
 			{
-				return json::parsing::get_number<T>(this->source.get(key).c_str(), format);
+				return json::parsing::get_number<T>(this->ref().c_str(), format);
 			}
+
 			template<typename T>
 			inline std::vector<T> get_number_array(const char* format) const
 			{
-				std::string value = this->source.get(key);
-				std::vector<std::string> numbers = json::parsing::parse_array(value.c_str());
+				std::vector<std::string> numbers = json::parsing::parse_array(this->ref().c_str());
 				std::vector<T> result;
 				for (size_t i = 0; i < numbers.size(); i++)
 				{
@@ -107,13 +106,13 @@ namespace json
 				}
 				return result;
 			}
-		public:
-			const_proxy(const jobject &source, const std::string key) : source(source), key(key) { }
 
+		public:
 			inline std::string as_string() const
 			{
-				const std::string value = source.get(key);
-				return json::parsing::unescape_quotes(json::parsing::parse(value.c_str()).value.c_str());
+				return json::parsing::unescape_quotes(
+					json::parsing::parse(this->ref().c_str()).value.c_str()
+					);
 			}
 
 			inline operator std::string() const 
@@ -136,8 +135,7 @@ namespace json
 			// Objects
 			inline json::jobject as_object() const
 			{
-				const std::string value = this->source.get(key);
-				return json::jobject::parse(value.c_str());
+				return json::jobject::parse(this->ref().c_str());
 			}
 
 			inline operator json::jobject() const
@@ -155,12 +153,12 @@ namespace json
 			operator std::vector<double>() const { return this->get_number_array<double>("%f"); }
 			operator std::vector<json::jobject>() const
 			{
-				const std::vector<std::string> objs = json::parsing::parse_array(this->source.get(key).c_str());
+				const std::vector<std::string> objs = json::parsing::parse_array(this->ref().c_str());
 				std::vector<json::jobject> results;
 				for (size_t i = 0; i < objs.size(); i++) results.push_back(json::jobject::parse(objs[i].c_str()));
 				return results;
 			}
-			operator std::vector<std::string>() const { return json::parsing::parse_array(this->source.get(key).c_str()); }
+			operator std::vector<std::string>() const { return json::parsing::parse_array(this->ref().c_str()); }
 
 			template<typename T>
 			inline std::vector<T> as_array() const
@@ -171,23 +169,40 @@ namespace json
 			// Boolean
 			inline bool is_true() const
 			{
-				const std::string value = this->source.get(key);
-				json::parsing::parse_results result = json::parsing::parse(value.c_str());
+				json::parsing::parse_results result = json::parsing::parse(this->ref().c_str());
 				return (result.type == json::jtype::jbool && result.value == "true");
 			}
 
 			// Null
 			inline bool is_null() const
 			{
-				const std::string value = this->source.get(key);
-				json::parsing::parse_results result = json::parsing::parse(value.c_str());
-				return result.type == json::jtype::jnull;
+				return json::parsing::parse(this->ref().c_str()).type == json::jtype::jnull;
 			}
+		};
+
+		class const_proxy : public entry
+		{
+		private:
+			const jobject &source;
+
+		protected:
+			const std::string key;
+
+			inline const std::string& ref() const 
+			{
+				for (size_t i = 0; i < this->source.size(); i++) if (this->source.data.at(i).first == key) return this->source.data.at(i).second;
+				throw json::invalid_key(key);
+			}
+
+		public:
+			const_proxy(const jobject &source, const std::string key) : source(source), key(key) { }
 		};
 
 		class proxy : public json::jobject::const_proxy
 		{
+		private:
 			jobject &sink;
+
 		protected:
 			template<typename T>
 			inline void set_number(const T value, const char* format)
