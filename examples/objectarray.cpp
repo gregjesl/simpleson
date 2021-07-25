@@ -24,7 +24,11 @@ int main(void)
     // Print the result
     printf("%s\n", serial.c_str());
 
-    // Read back the items
+    // Access each item
+    assert(example["array"][0] == obj1);
+    assert(example["array"][1] == obj2);
+
+    // Read back the entire array
     std::vector<json::jobject> readbackarray = example["array"];
 
     // Access each item

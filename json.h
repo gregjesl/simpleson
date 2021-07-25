@@ -180,6 +180,23 @@ namespace json
 			}
 		};
 
+		class const_value : public entry
+		{
+		private:
+			std::string data;
+
+		protected:
+			inline const std::string& ref() const 
+			{
+				return this->data;
+			}
+		
+		public:
+			inline const_value(std::string value)
+			: data(value)
+			{ }
+		};
+
 		class const_proxy : public entry
 		{
 		private:
@@ -196,6 +213,15 @@ namespace json
 
 		public:
 			const_proxy(const jobject &source, const std::string key) : source(source), key(key) { }
+
+			const_value operator[](size_t index) const
+			{
+				const char *value = this->ref().c_str();
+				if(json::jtype::detect(value) != json::jtype::jarray)
+					throw std::invalid_argument("Input is not an array");
+				const std::vector<std::string> values = json::parsing::parse_array(value);
+				return const_value(values[index]);
+			}
 		};
 
 		class proxy : public json::jobject::const_proxy

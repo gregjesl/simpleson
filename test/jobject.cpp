@@ -70,8 +70,9 @@ int main(void)
 	TEST_STRING_EQUAL(retest["string"].as_string().c_str(), "test \"string");
 	std::vector<int> retest_array = retest["array"];
 	TEST_TRUE(retest_array == std::vector<int>(test_array, test_array + 3));
-	json::jobject resubobj = test["subobj"];
+	json::jobject resubobj = retest["subobj"];
 	TEST_STRING_EQUAL(resubobj["hello"].as_string().c_str(), "world");
+	TEST_TRUE(retest["objarray"][0].as_object() == subobj);
 	strarray = retest["strarray"];
 	TEST_EQUAL(strarray.size(), 2);
 	TEST_STRING_EQUAL(strarray[0].c_str(), "hello");
