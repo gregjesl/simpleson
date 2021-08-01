@@ -83,6 +83,7 @@ namespace json
 	{
 	private:
 		std::vector<kvp> data;
+		bool array_flag;
 
 		class entry
 		{
@@ -195,6 +196,16 @@ namespace json
 			inline const_value(std::string value)
 			: data(value)
 			{ }
+
+			inline const_value operator[](const std::string &key) const
+			{
+				return const_value(json::jobject::parse(this->data).get(key));
+			}
+
+			inline const_value operator[](const size_t index) const
+			{
+				return const_value(json::jobject::parse(this->data).get(index));
+			}
 		};
 
 		class const_proxy : public entry
@@ -260,6 +271,11 @@ namespace json
 				this->sink.set(this->key, "\"" + json::parsing::escape_quotes(value.c_str()) + "\"");
 			}
 
+			inline void operator= (const char* value)
+			{
+				this->operator=(std::string(value));
+			}
+
 			// Numbers
 			void operator=(const int input) { this->set_number(input, "%i"); }
 			void operator=(const unsigned int input) { this->set_number(input, "%u"); }
@@ -313,8 +329,18 @@ namespace json
 			}
 		};
 	public:
-		inline jobject() { }
+		inline jobject(bool array = false)
+			: array_flag(array) 
+			{ }
+
+		inline jobject(const jobject &other)
+			: data(other.data),
+			array_flag(other.array_flag)
+		{ }
+
 		inline virtual ~jobject() { }
+
+		bool is_array() const { return this->array_flag; }
 
 		inline size_t size() const { return this->data.size(); }
 
@@ -322,6 +348,13 @@ namespace json
 
 		bool operator== (const json::jobject other) const { return ((std::string)(*this)) == (std::string)other; }
 		bool operator!= (const json::jobject other) const { return ((std::string)(*this)) != (std::string)other; }
+
+		inline jobject& operator=(const jobject rhs)
+		{
+			this->array_flag = rhs.array_flag;
+			this->data = rhs.data;
+			return *this;
+		}
 
 		jobject& operator+=(const kvp& other)
 		{
@@ -369,28 +402,45 @@ namespace json
 
 		inline bool has_key(const std::string &key) const
 		{
+			if(this->array_flag) return false;
 			for (size_t i = 0; i < this->size(); i++) if (this->data.at(i).first == key) return true;
 			return false;
 		}
 
 		void set(const std::string &key, const std::string &value);
 
+		inline std::string get(const size_t index) const
+		{
+			return this->data.at(index).second;
+		}
+
 		inline std::string get(const std::string &key) const
 		{
-			for (size_t i = 0; i < this->size(); i++) if (this->data.at(i).first == key) return this->data.at(i).second;
+			for (size_t i = 0; i < this->size(); i++) if (this->data.at(i).first == key) return this->get(i);
 			throw json::invalid_key(key);
 		}
 
 		void remove(const std::string &key);
+		void remove(const size_t index)
+		{
+			this->data.erase(this->data.begin() + index);
+		}
 
 		inline virtual jobject::proxy operator[](const std::string key)
 		{
+			if(this->array_flag) throw json::invalid_key(key);
 			return jobject::proxy(*this, key);
 		}
 
 		inline virtual const jobject::const_proxy operator[](const std::string key) const
 		{
+			if(this->array_flag) throw json::invalid_key(key);
 			return jobject::const_proxy(*this, key);
+		}
+
+		inline virtual const jobject::const_value operator[](const size_t index) const
+		{
+			return jobject::const_value(this->data.at(index).second);
 		}
 
 		operator std::string() const;

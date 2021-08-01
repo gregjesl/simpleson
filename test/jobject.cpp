@@ -17,6 +17,7 @@ int main(void)
 		"}";
 
 	json::jobject result = json::jobject::parse(input);
+	TEST_FALSE(result.is_array());
 	TEST_STRING_EQUAL(result.get("number").c_str(), "123.456");
 	TEST_STRING_EQUAL(result.get("string").c_str(), "\"hello \\\" world\"");
 	TEST_STRING_EQUAL(result.get("array").c_str(), "[1,2,3]");
@@ -86,4 +87,8 @@ int main(void)
 	TEST_FALSE(test["boolean"].is_null());
 	std::vector<json::jobject> objarrayecho = test["objarray"];
 	TEST_EQUAL(objarrayecho.size(), 2);
+
+	// Test copy constructor
+	json::jobject copy(test);
+	TEST_STRING_EQUAL(copy.as_string().c_str(), test.as_string().c_str());
 }

@@ -3,6 +3,7 @@
 
 #define EMPTY_STRING(str) (*str == '\0')
 #define SKIP_WHITE_SPACE(str) { const char *next = json::parsing::tlws(str); str = next; }
+#define END_CHARACTER_ENCOUNTERED(obj, index) (obj.is_array() ? *index == ']' : *index == '}')
 
 const char* json::parsing::tlws(const char *input)
 {
@@ -386,24 +387,40 @@ json::jobject json::jobject::parse(const char *input)
 {
     const char error[] = "Input is not a valid object";
     const char *index = json::parsing::tlws(input);
-    if (*index != '{') throw json::parsing_error(error);
+    json::jobject result;
+    switch (*index)
+    {
+    case '{':
+        // Result is already an object
+        break;
+    case '[':
+        result = json::jobject(true);
+        break;
+    default:
+        throw json::parsing_error(error);
+        break;
+    }
     index++;
     SKIP_WHITE_SPACE(index);
     if (EMPTY_STRING(index)) throw json::parsing_error(error);
-    json::jobject result;
-    while (!EMPTY_STRING(index) && *index != '}')
+
+    while (!EMPTY_STRING(index) && !END_CHARACTER_ENCOUNTERED(result, index))
     {
         // Get key
         kvp entry;
-        json::parsing::parse_results key = json::parsing::parse(index);
-        if (key.type != json::jtype::jstring || key.value == "") throw json::parsing_error(error);
-        entry.first = key.value;
-        index = key.remainder;
 
-        // Get value
-        SKIP_WHITE_SPACE(index);
-        if (*index != ':') throw json::parsing_error(error);
-        index++;
+        if(!result.is_array()) {
+            json::parsing::parse_results key = json::parsing::parse(index);
+            if (key.type != json::jtype::jstring || key.value == "") throw json::parsing_error(error);
+            entry.first = key.value;
+            index = key.remainder;
+
+            // Get value
+            SKIP_WHITE_SPACE(index);
+            if (*index != ':') throw json::parsing_error(error);
+            index++;
+        }
+
         SKIP_WHITE_SPACE(index);
         json::parsing::parse_results value = json::parsing::parse(index);
         if (value.type == json::jtype::not_valid) throw json::parsing_error(error);
@@ -413,18 +430,19 @@ json::jobject json::jobject::parse(const char *input)
 
         // Clean up
         SKIP_WHITE_SPACE(index);
-        if (*index != ',' && *index != '}') throw json::parsing_error(error);
+        if (*index != ',' && !END_CHARACTER_ENCOUNTERED(result, index)) throw json::parsing_error(error);
         if (*index == ',') index++;
         result += entry;
 
     }
-    if (EMPTY_STRING(index) || *index != '}') throw json::parsing_error(error);
+    if (EMPTY_STRING(index) || !END_CHARACTER_ENCOUNTERED(result, index)) throw json::parsing_error(error);
     index++;
     return result;
 }
 
 void json::jobject::set(const std::string &key, const std::string &value)
 {
+    if(this->array_flag) throw json::invalid_key(key);
     for (size_t i = 0; i < this->size(); i++)
     {
         if (this->data.at(i).first == key)
@@ -445,7 +463,7 @@ void json::jobject::remove(const std::string &key)
     {
         if (this->data.at(i).first == key)
         {
-            this->data.erase(this->data.begin() + i, this->data.begin() + i + 1);
+            this->remove(i);
         }
     }
 }
