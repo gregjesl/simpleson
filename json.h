@@ -438,7 +438,7 @@ namespace json
 			return jobject::const_proxy(*this, key);
 		}
 
-		inline virtual const jobject::const_value operator[](const size_t index) const
+		inline const jobject::const_value array(const size_t index) const
 		{
 			return jobject::const_value(this->data.at(index).second);
 		}

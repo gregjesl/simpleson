@@ -83,7 +83,7 @@ Arrays are stored in a `jobject`. You can determine whether a `jobject` is holdi
 ### Multi-level Access
 To access elements several levels down, the `get(key)` and `array(index)` can be used for objects and arrays, respectively: 
 ```cpp
-std::string music_desired = example[1].get("hobbies").array(1).get("music");
+std::string music_desired = example.array(0).get("hobbies").array(1).get("music");
 ```
 See [the full example here](examples/rootarray.cpp). 
 
