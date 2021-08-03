@@ -28,6 +28,7 @@ int main(void)
 	TEST_STRING_EQUAL(result.get("emptyarray").c_str(), "[]");
 	TEST_TRUE(result.has_key("number"));
 	TEST_FALSE(result.has_key("nokey"));
+	TEST_STRING_EQUAL(result["objarray"].array(0).get("key").as_string().c_str(), "value");
 	std::vector<std::string> strarray = result["strarray"];
 	TEST_EQUAL(strarray.size(), 2);
 	TEST_STRING_EQUAL(strarray[0].c_str(), "hello");
@@ -73,7 +74,7 @@ int main(void)
 	TEST_TRUE(retest_array == std::vector<int>(test_array, test_array + 3));
 	json::jobject resubobj = retest["subobj"];
 	TEST_STRING_EQUAL(resubobj["hello"].as_string().c_str(), "world");
-	TEST_TRUE(retest["objarray"][0].as_object() == subobj);
+	TEST_TRUE(retest["objarray"].array(0).as_object() == subobj);
 	strarray = retest["strarray"];
 	TEST_EQUAL(strarray.size(), 2);
 	TEST_STRING_EQUAL(strarray[0].c_str(), "hello");

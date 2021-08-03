@@ -29,7 +29,7 @@ int main(void)
 
 	TEST_TRUE(result[3].is_true());
 	TEST_TRUE(result[4].is_null());
-	TEST_TRUE(result[5][0].as_object() == json::jobject::parse("{\"key\":\"value\"}"));
+	TEST_TRUE(result[5].array(0).as_object() == json::jobject::parse("{\"key\":\"value\"}"));
 
 	// Test copy constructor
 	json::jobject copy(result);

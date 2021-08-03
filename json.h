@@ -197,12 +197,12 @@ namespace json
 			: data(value)
 			{ }
 
-			inline const_value operator[](const std::string &key) const
+			inline const_value get(const std::string &key) const
 			{
 				return const_value(json::jobject::parse(this->data).get(key));
 			}
 
-			inline const_value operator[](const size_t index) const
+			inline const_value array(const size_t index) const
 			{
 				return const_value(json::jobject::parse(this->data).get(index));
 			}
@@ -225,7 +225,7 @@ namespace json
 		public:
 			const_proxy(const jobject &source, const std::string key) : source(source), key(key) { }
 
-			const_value operator[](size_t index) const
+			const_value array(size_t index) const
 			{
 				const char *value = this->ref().c_str();
 				if(json::jtype::detect(value) != json::jtype::jarray)
