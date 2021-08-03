@@ -85,7 +85,7 @@ To access elements several levels down, the `get(key)` and `array(index)` can be
 ```cpp
 std::string music_desired = example[1].get("hobbies").array(1).get("music");
 ```
-See [examples/rootarray.cpp](the full example here). 
+See [the full example here](examples/rootarray.cpp). 
 
 ### A note on booleans
 Booleans are handled a bit differently than other data types. Since everything can be cast to a boolean, having an implicit boolean operator meant everything goes to a boolean! Instead, **boolean values are set by using the `set_boolean()` method**. If you do not use this method and instead directly create/assign a boolean to a `jobject` array entry, then the boolean will be cast to an int with a value of 0 or 1. Similarly, you can check if a value is set to true or false using the `is_true()` method. 
