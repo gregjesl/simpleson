@@ -5,6 +5,14 @@
 #define SKIP_WHITE_SPACE(str) { const char *next = json::parsing::tlws(str); str = next; }
 #define END_CHARACTER_ENCOUNTERED(obj, index) (obj.is_array() ? *index == ']' : *index == '}')
 
+const char * INT_FORMAT = "%i";
+const char * UINT_FORMAT = "%u";
+const char * LONG_FORMAT = "%li";
+const char * ULONG_FORMAT = "%lu";
+const char * CHAR_FORMAT = "%c";
+const char * FLOAT_FORMAT = "%f";
+const char * DOUBLE_FORMAT = "%lf";
+
 const char* json::parsing::tlws(const char *input)
 {
     const char *output = input;
@@ -369,6 +377,22 @@ std::vector<std::string> json::parsing::parse_array(const char *input)
     index++;
     return result;
 }
+
+json::jobject::entry::operator int() const { return this->get_number<int>(INT_FORMAT); }
+json::jobject::entry::operator unsigned int() const { return this->get_number<unsigned int>(UINT_FORMAT); }
+json::jobject::entry::operator long() const { return this->get_number<long>(LONG_FORMAT); }
+json::jobject::entry::operator unsigned long() const { return this->get_number<unsigned long>(ULONG_FORMAT); }
+json::jobject::entry::operator char() const { return this->get_number<char>(CHAR_FORMAT); }
+json::jobject::entry::operator float() const { return this->get_number<float>(FLOAT_FORMAT); }
+json::jobject::entry::operator double() const { return this->get_number<double>(DOUBLE_FORMAT); }
+
+json::jobject::entry::operator std::vector<int>() const { return this->get_number_array<int>(INT_FORMAT); }
+json::jobject::entry::operator std::vector<unsigned int>() const { return this->get_number_array<unsigned int>(UINT_FORMAT); }
+json::jobject::entry::operator std::vector<long>() const { return this->get_number_array<long>(LONG_FORMAT); }
+json::jobject::entry::operator std::vector<unsigned long>() const { return this->get_number_array<unsigned long>(ULONG_FORMAT); }
+json::jobject::entry::operator std::vector<char>() const { return this->get_number_array<char>(CHAR_FORMAT); }
+json::jobject::entry::operator std::vector<float>() const { return this->get_number_array<float>(FLOAT_FORMAT); }
+json::jobject::entry::operator std::vector<double>() const { return this->get_number_array<double>(DOUBLE_FORMAT); }
 
 void json::jobject::proxy::set_array(const std::vector<std::string> &values, const bool wrap)
 {

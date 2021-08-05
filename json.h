@@ -125,13 +125,13 @@ namespace json
 			bool operator!= (const std::string other) const { return !(((std::string)(*this)) == other); }
 
 			// Numbers
-			operator int() const { return this->get_number<int>("%i"); }
-			operator unsigned int() const { return this->get_number<unsigned int>("%u"); }
-			operator long() const { return this->get_number<long>("%li"); }
-			operator unsigned long() const { return this->get_number<unsigned long>("%lu"); }
-			operator char() const { return this->get_number<char>("%c"); }
-			operator float() const { return this->get_number<float>("%f"); }
-			operator double() const { return this->get_number<double>("%lf"); }
+			operator int() const;
+			operator unsigned int() const;
+			operator long() const;
+			operator unsigned long() const;
+			operator char() const;
+			operator float() const;
+			operator double() const;
 
 			// Objects
 			inline json::jobject as_object() const
@@ -145,13 +145,13 @@ namespace json
 			}
 
 			// Arrays
-			operator std::vector<int>() const { return this->get_number_array<int>("%i"); }
-			operator std::vector<unsigned int>() const { return this->get_number_array<unsigned int>("%u"); }
-			operator std::vector<long>() const { return this->get_number_array<long>("%li"); }
-			operator std::vector<unsigned long>() const { return this->get_number_array<unsigned long>("%lu"); }
-			operator std::vector<char>() const { return this->get_number_array<char>("%c"); }
-			operator std::vector<float>() const { return this->get_number_array<float>("%f"); }
-			operator std::vector<double>() const { return this->get_number_array<double>("%lf"); }
+			operator std::vector<int>() const;
+			operator std::vector<unsigned int>() const;
+			operator std::vector<long>() const;
+			operator std::vector<unsigned long>() const;
+			operator std::vector<char>() const;
+			operator std::vector<float>() const;
+			operator std::vector<double>() const;
 			operator std::vector<json::jobject>() const
 			{
 				const std::vector<std::string> objs = json::parsing::parse_array(this->ref().c_str());
