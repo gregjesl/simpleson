@@ -151,7 +151,7 @@ namespace json
 			operator std::vector<unsigned long>() const { return this->get_number_array<unsigned long>("%lu"); }
 			operator std::vector<char>() const { return this->get_number_array<char>("%c"); }
 			operator std::vector<float>() const { return this->get_number_array<float>("%f"); }
-			operator std::vector<double>() const { return this->get_number_array<double>("%f"); }
+			operator std::vector<double>() const { return this->get_number_array<double>("%lf"); }
 			operator std::vector<json::jobject>() const
 			{
 				const std::vector<std::string> objs = json::parsing::parse_array(this->ref().c_str());
