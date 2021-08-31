@@ -23,6 +23,7 @@ else()
         # ignore warnings about scanf
         add_definitions(-D_CRT_SECURE_NO_WARNINGS)
         add_compile_options(/W4 /WX)
+    elseif(BORLAND)
     else()
         add_compile_options(-Wall -Wextra -Werror)
     endif()

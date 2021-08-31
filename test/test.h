@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __BORLANDC__
+#define __FUNCTION__ __FUNC__
+#endif
+
 #define TEST_TRUE(a)                                                           \
     {                                                                          \
         if (!(a)) {                                                            \
