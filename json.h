@@ -82,6 +82,8 @@ namespace json
 	class jobject
 	{
 	private:
+		class const_proxy;
+		friend class const_proxy;
 		std::vector<kvp> data;
 		bool array_flag;
 
