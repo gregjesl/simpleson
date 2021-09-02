@@ -44,6 +44,19 @@
             "MIMode": "lldb"
         },
         {
+            "name": "Pretty Array",
+            "type": "cppdbg",
+            "request": "launch",
+            "type": "lldb",
+            "program": "${workspaceFolder}/build/test/pretty_array_test",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb"
+        },
+        {
             "name": "examples/rootarray",
             "type": "cppdbg",
             "request": "launch",

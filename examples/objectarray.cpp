@@ -18,11 +18,8 @@ int main(void)
     json::jobject example;
     example["array"] = vec;
 
-    // Serialize the object
-    std::string serial = (std::string)example;
-
     // Print the result
-    printf("%s\n", serial.c_str());
+    printf("%s\n", example.pretty().c_str());
 
     // Access each item
     assert(example["array"].array(0) == obj1);

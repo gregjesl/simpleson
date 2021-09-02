@@ -67,6 +67,7 @@ The namespace of simpleson is simply `json`.  JSON objects can be parsed by call
 - `["key"].set_null()` - Sets the value associated with the key to null
 - `["key"].is_true()` - Returns true if the boolean value associated with the key is true
 - `["key"].is_null()` - Returns true if the value associated with the key is null
+- `pretty()` - Serializes the object into a "pretty" string (using tabs and newlines)
 
 An instance of `jobject` can be searlized by casting it to a `std::string`.  Note that an instance of `jobject` does not retain it's original formatting (it drops tabs, spaces outside strings, and newlines).  
 

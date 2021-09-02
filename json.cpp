@@ -516,3 +516,60 @@ json::jobject::operator std::string() const
         return result;
     }
 }
+
+std::string json::jobject::pretty(unsigned int indent_level) const
+{
+    std::string result = "";
+    for(unsigned int i = 0; i < indent_level; i++) result += "\t";
+    if (is_array()) {
+        if(this->size() == 0) {
+            result += "[]";
+            return result;
+        }
+        result += "[\n";
+        for (size_t i = 0; i < this->size(); i++)
+        {
+            switch(json::jtype::detect(this->data.at(i).second.c_str())) {
+                case json::jtype::jarray:
+                case json::jtype::jobject:
+                    result += json::jobject::parse(this->data.at(i).second).pretty(indent_level + 1);
+                    break;
+                default:
+                    for(unsigned int j = 0; j < indent_level + 1; j++) result += "\t";
+                    result += this->data.at(i).second;
+                    break;
+            }
+
+            result += ",\n";
+        }
+        result.erase(result.size() - 2, 1);
+        for(unsigned int i = 0; i < indent_level; i++) result += "\t";
+        result += "]";
+    } else {
+        if(this->size() == 0) {
+            result += "{}";
+            return result;
+        }
+        result += "{\n";
+        for (size_t i = 0; i < this->size(); i++)
+        {
+            for(unsigned int j = 0; j < indent_level + 1; j++) result += "\t";
+            result += "\"" + this->data.at(i).first + "\": ";
+            switch(json::jtype::detect(this->data.at(i).second.c_str())) {
+                case json::jtype::jarray:
+                case json::jtype::jobject:
+                    result += std::string(json::parsing::tlws(json::jobject::parse(this->data.at(i).second).pretty(indent_level + 1).c_str()));
+                    break;
+                default:
+                    result += this->data.at(i).second;
+                    break;
+            }
+
+            result += ",\n";
+        }
+        result.erase(result.size() - 2, 1);
+        for(unsigned int i = 0; i < indent_level; i++) result += "\t";
+        result += "}";
+    }
+    return result;
+}

@@ -451,6 +451,8 @@ namespace json
 		{
 			return this->operator std::string();
 		}
+
+		std::string pretty(unsigned int indent_level = 0) const;
 	};
 }
 
