@@ -6,14 +6,14 @@ int main(void)
 {
 	const char *input =
 		"["
-		"	123.456,"
-		"	\"hello \\\" world\","
-		"	[1,2,3],"
-		"	true,"
-		"	null,"
-		"	[{\"key\":\"value\"}],"
-		"	[\"hello\",\"world\"],"
-		"	[]"
+			"123.456,"
+			"\"hello \\\" world\","
+			"[1,2,3],"
+			"true,"
+			"null,"
+			"[{\"key\":\"value\"}],"
+			"[\"hello\",\"world\"],"
+			"[]"
 		"]";
 
 	json::jobject result = json::jobject::parse(input);
@@ -30,6 +30,9 @@ int main(void)
 	TEST_TRUE(result.array(3).is_true());
 	TEST_TRUE(result.array(4).is_null());
 	TEST_TRUE(result.array(5).array(0).as_object() == json::jobject::parse("{\"key\":\"value\"}"));
+
+	// Test serialization
+	TEST_STRING_EQUAL(result.as_string().c_str(), input);
 
 	// Test copy constructor
 	json::jobject copy(result);
