@@ -494,13 +494,25 @@ void json::jobject::remove(const std::string &key)
 
 json::jobject::operator std::string() const
 {
-    if (this->size() == 0) return "{}";
-    std::string result = "{";
-    for (size_t i = 0; i < this->size(); i++)
-    {
-        result += "\"" + this->data.at(i).first + "\":" + this->data.at(i).second + ",";
+    if (is_array()) {
+        if (this->size() == 0) return "[]";
+        std::string result = "[";
+        for (size_t i = 0; i < this->size(); i++)
+        {
+            result += this->data.at(i).second + ",";
+        }
+        result.erase(result.size() - 1, 1);
+        result += "]";
+        return result;
+    } else {
+        if (this->size() == 0) return "{}";
+        std::string result = "{";
+        for (size_t i = 0; i < this->size(); i++)
+        {
+            result += "\"" + this->data.at(i).first + "\":" + this->data.at(i).second + ",";
+        }
+        result.erase(result.size() - 1, 1);
+        result += "}";
+        return result;
     }
-    result.erase(result.size() - 1, 1);
-    result += "}";
-    return result;
 }
