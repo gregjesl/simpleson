@@ -73,7 +73,7 @@ namespace json
 			if(remainder < 0) {
 				return std::string();
 			} else if(remainder >= buflen) {
-				cstr = (char*)realloc(cstr, remainder + 1);
+				cstr = (char*)std::realloc(cstr, remainder + 1);
 				std::snprintf(cstr, remainder + 1, format, number);
 			}
 			std::string result(cstr);
