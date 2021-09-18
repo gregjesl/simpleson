@@ -151,17 +151,15 @@ namespace json
 		template <typename T>
 		std::string get_number_string(const T &number, const char *format)
 		{
-			const char buflen = 6;
-			char *cstr = new char[buflen];
-			int remainder = std::snprintf(cstr, buflen, format, number);
+			std::vector<char> cstr(6);
+			int remainder = std::snprintf(&cstr[0], cstr.size(), format, number);
 			if(remainder < 0) {
 				return std::string();
-			} else if(remainder >= buflen) {
-				cstr = (char*)std::realloc(cstr, remainder + 1);
-				std::snprintf(cstr, remainder + 1, format, number);
+			} else if(remainder >= (int)cstr.size()) {
+				cstr.resize(remainder + 1);
+				std::snprintf(&cstr[0], cstr.size(), format, number);
 			}
-			std::string result(cstr);
-			delete[] cstr;
+			std::string result(&cstr[0]);
 			return result;
 		}
 
