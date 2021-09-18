@@ -53,6 +53,9 @@ example["null"].set_null();
 std::string hello = example["strarray"][0];
 std::string world = example["strarray"][1];
 
+// Clear a value
+example["hello"].clear();
+
 // Serialize the new object
 std::string serial = (std::string)result;
 ```
