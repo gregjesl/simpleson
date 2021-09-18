@@ -13,8 +13,6 @@
 #include <stdexcept>
 #include <cctype>
 
-#define NUMBER_TO_STRING_BUFFER_LENGTH 100
-
 /*! \brief Base namespace for simpleson */
 namespace json
 {
@@ -153,9 +151,18 @@ namespace json
 		template <typename T>
 		std::string get_number_string(const T &number, const char *format)
 		{
-			char cstr[NUMBER_TO_STRING_BUFFER_LENGTH];
-			std::sprintf(cstr, format, number);
-			return std::string(cstr);
+			const char buflen = 6;
+			char *cstr = new char[buflen];
+			int remainder = std::snprintf(cstr, buflen, format, number);
+			if(remainder < 0) {
+				return std::string();
+			} else if(remainder >= buflen) {
+				cstr = (char*)std::realloc(cstr, remainder + 1);
+				std::snprintf(cstr, remainder + 1, format, number);
+			}
+			std::string result(cstr);
+			delete[] cstr;
+			return result;
 		}
 
 		/*! \brief Parses a JSON array
