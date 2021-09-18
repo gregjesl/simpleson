@@ -23,8 +23,13 @@ namespace json
 		/*! \brief The key used that was invalid */
 		const std::string key;
 
+		/*! \brief Constructor
+		 *
+		 * @param key The key that was not valid
+		 */
 		inline invalid_key(const std::string &key) : key(key) { }
 
+		/*! \brief Destructor */
 		inline virtual ~invalid_key() throw() { }
 
 		/*! \brief Returns the invalid key */
@@ -38,7 +43,13 @@ namespace json
 	class parsing_error : public std::invalid_argument
 	{
 	public:
+		/*! \brief Constructor 
+		 *
+		 * @param message Details regarding the parsing error
+		 */
 		inline parsing_error(const char *message) : std::invalid_argument(message) { }
+
+		/*! \brief Destructor */
 		inline virtual ~parsing_error() throw() { }
 	};
 
@@ -89,7 +100,7 @@ namespace json
 
 		/*! \brief Escape quotes in a string
 		 *
-		 * \details See <unescape_quotes>"()" for the reverse function
+		 * \details See json::parsing::unescape_quotes() for the reverse function
 		 * @param input A string potentially containing quotes
 		 * @return A string that has all quotes escaped
 		 * @see unescape_quotes() 
@@ -98,7 +109,7 @@ namespace json
 
 		/*! \brief Removes the escape charater from quotes
 		 *
-		 * \details See <escape_quotes>"()" for the reverse function
+		 * \details See json::parsing::escape_quotes for the reverse function
 		 * @param input A string potentially containing escaped quotes
 		 * @return A string with quotes that are not escaped
 		 * @see escape_quotes()
@@ -175,7 +186,18 @@ namespace json
 	/*! \brief (k)ey (v)alue (p)air */
 	typedef std::pair<std::string, std::string> kvp;
 
-	/*! \brief A class representing a JSON object */
+	/*! \class jobject
+	 * \brief The class used for manipulating JSON objects and arrays
+	 *
+	 * \example jobject.cpp
+	 * This is a basic of example of using simpleson for manipulating JSON
+	 *
+	 * \example rootarray.cpp
+	 * This is an example of how to handle JSON where the root object is an array
+	 * 
+	 * \example objectarray.cpp
+	 * This is an example of how to handle an array of JSON objects
+	 */
 	class jobject
 	{
 	private:
@@ -203,6 +225,7 @@ namespace json
 			array_flag(other.array_flag)
 		{ }
 
+		/*! \brief Destructor */
 		inline virtual ~jobject() { }
 
 		/*! \brief Flag for differentiating objects and arrays
@@ -217,7 +240,13 @@ namespace json
 		/*! \brief Clears the JSON object or array */
 		inline void clear() { this->data.resize(0); }
 
+		/*! \brief Comparison operator
+		 *
+		 * \todo Currently, the comparison just seralizes both objects and compares the strings, which is probably not as efficent as it could be
+		 */
 		bool operator== (const json::jobject other) const { return ((std::string)(*this)) == (std::string)other; }
+
+		/*! \brief Comparison operator */
 		bool operator!= (const json::jobject other) const { return ((std::string)(*this)) != (std::string)other; }
 
 		/*! \brief Assignment operator */
@@ -228,6 +257,10 @@ namespace json
 			return *this;
 		}
 
+		/*! \brief Appends a key-value pair to a JSON object
+		 *
+		 * \exception json::parsing_error Thrown if the key-value is incompatable with the existing object (object/array mismatch)
+		 */
 		jobject& operator+=(const kvp& other)
 		{
 			if (!this->array_flag && this->has_key(other.first)) throw json::parsing_error("Key conflict");
@@ -256,7 +289,18 @@ namespace json
 			return result;
 		}
 
+		/*! \brief Parses a serialized JSON string
+		 *
+		 * @param input Serialized JSON string
+		 * @return JSON object or array
+		 * \exception json::parsing_error Thrown when the input string is not valid JSON
+		 */
 		static jobject parse(const char *input);
+
+		/*! \brief Parses a serialized JSON string 
+		 *
+		 * @see json::jobject::parse(const char*)
+		 */
 		static inline jobject parse(const std::string input) { return parse(input.c_str()); }
 
 		/*! /brief Attempts to parse the input string
@@ -394,7 +438,10 @@ namespace json
 				return this->as_string();
 			}
 
+			/*! \brief Comparison operator */
 			bool operator== (const std::string other) const { return ((std::string)(*this)) == other; }
+
+			/*! \brief Comparison operator */
 			bool operator!= (const std::string other) const { return !(((std::string)(*this)) == other); }
 
 			/*! \brief Casts the value as an integer */
@@ -433,14 +480,28 @@ namespace json
 				return this->as_object();
 			}
 
-			// Arrays
+			/*! \brief Casts an array of integers */
 			operator std::vector<int>() const;
+
+			/*! \brief Casts an array of unsigned integers */
 			operator std::vector<unsigned int>() const;
+
+			/*! \brief Casts an array of long integers */
 			operator std::vector<long>() const;
+
+			/*! \brief Casts an array of unsigned long integers */
 			operator std::vector<unsigned long>() const;
+
+			/*! \brief Casts an array of chars */
 			operator std::vector<char>() const;
+
+			/*! \brief Casts an array of floating-point numbers */
 			operator std::vector<float>() const;
+
+			/*! \brief Casts an array of double floating-point numbers */
 			operator std::vector<double>() const;
+
+			/*! \brief Casts an array of JSON objects */
 			operator std::vector<json::jobject>() const
 			{
 				const std::vector<std::string> objs = json::parsing::parse_array(this->ref().c_str());
@@ -448,8 +509,14 @@ namespace json
 				for (size_t i = 0; i < objs.size(); i++) results.push_back(json::jobject::parse(objs[i].c_str()));
 				return results;
 			}
+
+			/*! \brief Casts an array of strings */
 			operator std::vector<std::string>() const { return json::parsing::parse_array(this->ref().c_str()); }
 
+			/*! \brief Casts an array
+			 *
+			 * @tparam T The type of array to be cast to
+			 */
 			template<typename T>
 			inline std::vector<T> as_array() const
 			{

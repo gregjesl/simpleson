@@ -5,16 +5,46 @@
 #include "json.h"
 #include <string.h>
 
+/*! \brief Checks for an empty string
+ * 
+ * @param str The string to check
+ * @return True if the string is empty, false if the string is not empty
+ * @warning The string must be null-terminated for this macro to work
+ */
 #define EMPTY_STRING(str) (*str == '\0')
+
+/*! \brief Moves a pointer to the first character that is not white space
+ *
+ * @param str The pointer to move
+ */
 #define SKIP_WHITE_SPACE(str) { const char *next = json::parsing::tlws(str); str = next; }
+
+/*! \brief Determines if the end character of serialized JSON is encountered
+ * 
+ * @param obj The JSON object or array that is being written to
+ * @param index The pointer to the character to be checked
+ */
 #define END_CHARACTER_ENCOUNTERED(obj, index) (obj.is_array() ? *index == ']' : *index == '}')
 
+/*! \brief Format used for integer to string conversion */
 const char * INT_FORMAT = "%i";
+
+/*! \brief Format used for unsigned integer to string conversion */
 const char * UINT_FORMAT = "%u";
+
+/*! \brief Format used for long integer to string conversion */
 const char * LONG_FORMAT = "%li";
+
+/*! \brief Format used for unsigned long integer to string conversion */
 const char * ULONG_FORMAT = "%lu";
+
+/*! \brief Format used for character to string conversion */
 const char * CHAR_FORMAT = "%c";
+
+/*! \brief Format used for floating-point number to string conversion */
 const char * FLOAT_FORMAT = "%f";
+
+/*! \brief Format used for double floating-opint number to string conversion */
 const char * DOUBLE_FORMAT = "%lf";
 
 const char* json::parsing::tlws(const char *input)
