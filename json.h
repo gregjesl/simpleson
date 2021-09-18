@@ -169,9 +169,6 @@ namespace json
 	class jobject
 	{
 	private:
-		class const_proxy;
-		friend class const_proxy;
-
 		/*! \brief The container used to store the object's data */
 		std::vector<kvp> data;
 
