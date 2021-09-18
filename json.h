@@ -1,6 +1,7 @@
 #ifndef JSON_H
 #define JSON_H
 
+#include <cstdlib>
 #include <string>
 #include <vector>
 #include <cstdio>
