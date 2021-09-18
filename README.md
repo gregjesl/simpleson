@@ -5,7 +5,7 @@ Lightweight C++ JSON parser &amp; serializer that is C++98 compatible with no de
 
 [Github Repository](https://github.com/gregjesl/simpleson)
 
-[Documentation](https://www.oldgreg.net/simpleson)
+[Documentation](https://www.oldgreg.net/simpleson/1.0.0)
 
 ## Why simpleson? 
 Simpleson is built under the following requirements:
