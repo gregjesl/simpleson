@@ -47,3 +47,6 @@ build/
 
 # Local History for Visual Studio Code
 .history/
+
+# Doxygen folders
+docs/
