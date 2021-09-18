@@ -1,6 +1,10 @@
 #ifndef JSON_H
 #define JSON_H
 
+/*! \file json.h
+ * \brief Simpleson header file
+ */
+
 #include <cstdlib>
 #include <string>
 #include <vector>
@@ -561,21 +565,42 @@ namespace json
 			}
 		};
 
-		/*! \brief A proxy that allows modification of the value */
+		/*! \brief A proxy that allows modification of the value
+		 *
+		 * \todo Currently, proxies only support JSON object and not arrays
+		 */
 		class proxy : public json::jobject::const_proxy
 		{
 		private:
+			/*! \brief The parent object to be manipulated */
 			jobject &sink;
 
 		protected:
+			/*! \brief Sets a number value in the parent object 
+			 * 
+			 * @tparam T The data type to be translated into JSON
+			 * @param value The value to be translated to JSON
+			 * @param format The format to use when translating the number
+			 */
 			template<typename T>
 			inline void set_number(const T value, const char* format)
 			{
 				this->sink.set(key, json::parsing::get_number_string(value, format));
 			}
 
+			/*! \brief Stores an array of values 
+			 *
+			 * @param values The values to store as an array
+			 * @param wrap When true, the values are wrapped in quotes. When false, the values are stored as-is
+			 */
 			void set_array(const std::vector<std::string> &values, const bool wrap = false);
 
+			/*! \brief Stores an array of numbers
+			 * 
+			 * @tparam T The data type to be translated into JSON
+			 * @param values The array of values to be translated into JSON
+			 * @param format The format to use when translating the numbers
+			 */
 			template<typename T>
 			inline void set_number_array(const std::vector<T> &values, const char* format)
 			{
@@ -587,47 +612,81 @@ namespace json
 				this->set_array(numbers);
 			}
 		public:
+			/*! \brief Constructor 
+			 *
+			 * @param source The JSON object that will be updated when a value is assigned
+			 * @param key The key for the value to be updated
+			 */
 			proxy(jobject &source, const std::string key) 
 				: json::jobject::const_proxy(source, key),
 				sink(source)
 			{ }
 
-			// Strings
+			/*! \brief Assigns a string value */
 			inline void operator= (const std::string value)
 			{
 				this->sink.set(this->key, "\"" + json::parsing::escape_quotes(value.c_str()) + "\"");
 			}
 
+			/*! \brief Assigns a string value */
 			inline void operator= (const char* value)
 			{
 				this->operator=(std::string(value));
 			}
 
-			// Numbers
+			/*! \brief Assigns an integer */
 			void operator=(const int input) { this->set_number(input, "%i"); }
+
+			/*! \brief Assigns an unsigned integer */
 			void operator=(const unsigned int input) { this->set_number(input, "%u"); }
+
+			/*! \brief Assigns a long integer */
 			void operator=(const long input) { this->set_number(input, "%li"); }
+
+			/*! \brief Assigns a long unsigned integer */
 			void operator=(const unsigned long input) { this->set_number(input, "%lu"); }
+
+			/*! \brief Assigns an character */
 			void operator=(const char input) { this->set_number(input, "%c"); }
+
+			/*! \brief Assigns an double floating-point integer  */
 			void operator=(const double input) { this->set_number(input, "%e"); }
+
+			/*! \brief Assigns an floating-point integer  */
 			void operator=(const float input) { this->set_number(input, "%e"); }
 
-			// Objects
+			/*! \brief Assigns a JSON object or array */
 			void operator=(json::jobject input)
 			{
 				this->sink.set(key, (std::string)input);
 			}
 
-			// Arrays
+			/*! \brief Assigns an array of integers */
 			void operator=(const std::vector<int> input) { this->set_number_array(input, "%i"); }
+
+			/*! \brief Assigns an array of unsigned integers */
 			void operator=(const std::vector<unsigned int> input) { this->set_number_array(input, "%u"); }
+
+			/*! \brief Assigns an array of long integers */
 			void operator=(const std::vector<long> input) { this->set_number_array(input, "%li"); }
+
+			/*! \brief Assigns an array of unsigned long integers */
 			void operator=(const std::vector<unsigned long> input) { this->set_number_array(input, "%lu"); }
+
+			/*! \brief Assigns an array of characters */
 			void operator=(const std::vector<char> input) { this->set_number_array(input, "%c"); }
+
+			/*! \brief Assigns an array of floating-point numbers */
 			void operator=(const std::vector<float> input) { this->set_number_array(input, "%e"); }
+
+			/*! \brief Assigns an array of double floating-point numbers */
 			void operator=(const std::vector<double> input) { this->set_number_array(input, "%e"); }
+
+			/*! \brief Assigns an array of strings */
 			void operator=(const std::vector<std::string> input) { this->set_array(input, true); }
-			void operator=(std::vector<json::jobject> input)
+
+			/*! \brief Assigns an array of JSON objects */
+			void operator=(const std::vector<json::jobject> input)
 			{
 				std::vector<std::string> objs;
 				for (size_t i = 0; i < input.size(); i++)
@@ -637,20 +696,23 @@ namespace json
 				this->set_array(objs, false);
 			}
 
-			// Boolean
+			/*! \brief Sets a boolean value
+			 *
+			 * This method is required because operator=(bool value) conflict with number-based assignments
+			 */
 			inline void set_boolean(const bool value)
 			{
 				if (value) this->sink.set(key, "true");
 				else this->sink.set(key, "false");
 			}
 
-			// Null
+			/*! Sets a null value */
 			inline void set_null()
 			{
 				this->sink.set(key, "null");
 			}
 
-			// Clear a value
+			/*! Clears the value */
 			inline void clear()
 			{
 				this->sink.remove(key);

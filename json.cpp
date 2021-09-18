@@ -1,3 +1,7 @@
+/*! \file json.cpp
+ * \brief Simpleson source file
+ */
+
 #include "json.h"
 #include <string.h>
 

@@ -3,6 +3,10 @@
 # simpleson
 Lightweight C++ JSON parser &amp; serializer that is C++98 compatible with no dependencies
 
+[Github Repository](https://github.com/gregjesl/simpleson)
+
+[Documentation](https://www.oldgreg.net/simpleson)
+
 ## Why simpleson? 
 Simpleson is built under the following requirements:
 - One header and one source file only
@@ -55,6 +59,7 @@ std::string world = example["strarray"][1];
 
 // Clear a value
 example["hello"].clear();
+example.remove("emptyarray");
 
 // Serialize the new object
 std::string serial = (std::string)result;
