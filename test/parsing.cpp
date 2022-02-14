@@ -64,7 +64,7 @@ int main(void)
 
 	// Tryparse
 	json::jobject tryparse_result;
-	TEST_TRUE(json::jobject::tryparse("not json", tryparse_result));
-	TEST_FALSE(json::jobject::tryparse("{\"hello\":\"world\"}", tryparse_result));
+	TEST_FALSE(json::jobject::tryparse("not json", tryparse_result));
+	TEST_TRUE(json::jobject::tryparse("{\"hello\":\"world\"}", tryparse_result));
 	TEST_STRING_EQUAL("{\"hello\":\"world\"}", tryparse_result.as_string().c_str());
 }
