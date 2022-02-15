@@ -317,9 +317,9 @@ namespace json
 			}
 			catch(...)
 			{
-				return true;
+				return false;
 			}
-			return false;
+			return true;
 		}
 
 		/*! \brief Determines if an object contains a key
