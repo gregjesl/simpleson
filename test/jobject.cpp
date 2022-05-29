@@ -67,27 +67,97 @@ int main(void)
 
 	std::string serial = (std::string)test;
 	json::jobject retest = json::jobject::parse(serial.c_str());
+
+	// Integer
 	TEST_EQUAL((int)retest["int"], 123);
+	TEST_FALSE(retest["int"].is_string());
+	TEST_TRUE(retest["int"].is_number());
+	TEST_FALSE(retest["int"].is_object());
+	TEST_FALSE(retest["int"].is_array());
+	TEST_FALSE(retest["int"].is_bool());
+	TEST_FALSE(retest["int"].is_null());
+
+	// Float
 	TEST_TRUE(fabs((float)retest["float"] - 12.3f) < 1.0e-6);
+	TEST_FALSE(retest["float"].is_string());
+	TEST_TRUE(retest["float"].is_number());
+	TEST_FALSE(retest["float"].is_object());
+	TEST_FALSE(retest["float"].is_array());
+	TEST_FALSE(retest["float"].is_bool());
+	TEST_FALSE(retest["float"].is_null());
+
+	// String
 	TEST_STRING_EQUAL(retest["string"].as_string().c_str(), "test \"string");
+	TEST_TRUE(retest["string"].is_string());
+	TEST_FALSE(retest["string"].is_number());
+	TEST_FALSE(retest["string"].is_object());
+	TEST_FALSE(retest["string"].is_array());
+	TEST_FALSE(retest["string"].is_bool());
+	TEST_FALSE(retest["string"].is_null());
+
+	// Array
 	std::vector<int> retest_array = retest["array"];
 	TEST_TRUE(retest_array == std::vector<int>(test_array, test_array + 3));
+	TEST_FALSE(retest["array"].is_string());
+	TEST_FALSE(retest["array"].is_number());
+	TEST_TRUE(retest["array"].is_object());
+	TEST_TRUE(retest["array"].is_array());
+	TEST_FALSE(retest["array"].is_bool());
+	TEST_FALSE(retest["array"].is_null());
+
+	// Object
 	json::jobject resubobj = retest["subobj"];
 	TEST_STRING_EQUAL(resubobj["hello"].as_string().c_str(), "world");
+	TEST_FALSE(retest["subobj"].is_string());
+	TEST_FALSE(retest["subobj"].is_number());
+	TEST_TRUE(retest["subobj"].is_object());
+	TEST_FALSE(retest["subobj"].is_array());
+	TEST_FALSE(retest["subobj"].is_bool());
+	TEST_FALSE(retest["subobj"].is_null());
+
+	// Object array
 	TEST_TRUE(retest["objarray"].array(0).as_object() == subobj);
 	strarray = retest["strarray"];
 	TEST_EQUAL(strarray.size(), 2);
 	TEST_STRING_EQUAL(strarray[0].c_str(), "hello");
 	TEST_STRING_EQUAL(strarray[1].c_str(), "world");
-	emptyarray = retest["emptyarray"];
-	TEST_EQUAL(emptyarray.size(), 0);
-	TEST_TRUE(test.has_key("boolean"));
-	TEST_TRUE(test["boolean"].is_true());
-	TEST_TRUE(test.has_key("null"));
-	TEST_TRUE(test["null"].is_null());
-	TEST_FALSE(test["boolean"].is_null());
 	std::vector<json::jobject> objarrayecho = test["objarray"];
 	TEST_EQUAL(objarrayecho.size(), 2);
+	TEST_FALSE(retest["objarray"].is_string());
+	TEST_FALSE(retest["objarray"].is_number());
+	TEST_TRUE(retest["objarray"].is_object());
+	TEST_TRUE(retest["objarray"].is_array());
+	TEST_FALSE(retest["objarray"].is_bool());
+	TEST_FALSE(retest["objarray"].is_null());
+
+	// Empty array
+	emptyarray = retest["emptyarray"];
+	TEST_EQUAL(emptyarray.size(), 0);
+	TEST_FALSE(retest["emptyarray"].is_string());
+	TEST_FALSE(retest["emptyarray"].is_number());
+	TEST_TRUE(retest["emptyarray"].is_object());
+	TEST_TRUE(retest["emptyarray"].is_array());
+	TEST_FALSE(retest["emptyarray"].is_bool());
+	TEST_FALSE(retest["emptyarray"].is_null());
+
+	// Boolean
+	TEST_TRUE(retest.has_key("boolean"));
+	TEST_FALSE(retest["boolean"].is_string());
+	TEST_FALSE(retest["boolean"].is_number());
+	TEST_FALSE(retest["boolean"].is_object());
+	TEST_FALSE(retest["boolean"].is_array());
+	TEST_TRUE(retest["boolean"].is_bool());
+	TEST_FALSE(retest["boolean"].is_null());
+	TEST_TRUE(test["boolean"].is_true());
+
+	// Null
+	TEST_TRUE(test.has_key("null"));
+	TEST_FALSE(retest["null"].is_string());
+	TEST_FALSE(retest["null"].is_number());
+	TEST_FALSE(retest["null"].is_object());
+	TEST_FALSE(retest["null"].is_array());
+	TEST_FALSE(retest["null"].is_bool());
+	TEST_TRUE(retest["null"].is_null());
 
 	// Test copy constructor
 	json::jobject copy(test);
