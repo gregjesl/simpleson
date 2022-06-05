@@ -523,6 +523,37 @@ namespace json
 				return (std::vector<T>)(*this);
 			}
 
+			/*! \brief Returns true if the value is a string */
+			inline bool is_string() const
+			{
+				return json::parsing::parse(this->ref().c_str()).type == json::jtype::jstring;
+			}
+
+			/*! \brief Returns true if the value is a number */
+			inline bool is_number() const
+			{
+				return json::parsing::parse(this->ref().c_str()).type == json::jtype::jnumber;
+			}
+
+			/*! \brief Returns true if the value is an object */
+			inline bool is_object() const
+			{
+				const jtype::jtype type = json::parsing::parse(this->ref().c_str()).type;
+				return type == json::jtype::jobject || type == json::jtype::jarray;
+			}
+
+			/*! \brief Returns true if the value is an array */
+			inline bool is_array() const
+			{
+				return json::parsing::parse(this->ref().c_str()).type == json::jtype::jarray;
+			}
+
+			/*! \brief Returns true if the value is a bool */
+			inline bool is_bool() const
+			{
+				return json::parsing::parse(this->ref().c_str()).type == json::jtype::jbool;
+			}
+
 			/*! \brief Returns true if the value is a boolean and set to true */
 			inline bool is_true() const
 			{
