@@ -98,23 +98,23 @@ namespace json
 		 */
 		std::string read_digits(const char *input);
 
-		/*! \brief Escape quotes in a string
+		/*! \brief Escape control characters
 		 *
-		 * \details See json::parsing::unescape_quotes() for the reverse function
-		 * @param input A string potentially containing quotes
-		 * @return A string that has all quotes escaped
-		 * @see unescape_quotes() 
+		 * \details The quotation mark ("), reverse solidus (\), solidus (/), backspace (b), formfeed (f), linefeed (n), carriage return (r), horizontal tab (t), and Unicode character need to be escaped
+		 * @param input A string potentially containing control characters
+		 * @return A string that has all control characters escaped
+		 * @see unescape_characters
 		 */
-		std::string escape_quotes(const char *input);
+		std::string escape_characters(const char *input);
 
-		/*! \brief Removes the escape charater from quotes
+		/*! \brief Escape control characters
 		 *
-		 * \details See json::parsing::escape_quotes for the reverse function
-		 * @param input A string potentially containing escaped quotes
-		 * @return A string with quotes that are not escaped
-		 * @see escape_quotes()
+		 * \details The quotation mark ("), reverse solidus (\), solidus (/), backspace (b), formfeed (f), linefeed (n), carriage return (r), horizontal tab (t), and Unicode character need to be escaped
+		 * @param input A string potentially containing control characters
+		 * @return A string that has all control characters escaped
+		 * @see escape_characters
 		 */
-		std::string unescape_quotes(const char *input);
+		std::string unescape_characters(const char *input);
 
 		/*! \brief Structure for capturing the results of parsing */
 		struct parse_results
@@ -427,9 +427,8 @@ namespace json
 			/*! \brief Returns a string representation of the value */
 			inline std::string as_string() const
 			{
-				return json::parsing::unescape_quotes(
-					json::parsing::parse(this->ref().c_str()).value.c_str()
-					);
+				return json::jtype::detect(this->ref().c_str()) == json::jtype::jstring ?  
+					json::parsing::unescape_characters(this->ref().c_str()) : this->ref();
 			}
 
 			/*! @see json::jobject::entry::as_string() */
@@ -728,7 +727,7 @@ namespace json
 			/*! \brief Assigns a string value */
 			inline void operator= (const std::string value)
 			{
-				this->sink.set(this->key, "\"" + json::parsing::escape_quotes(value.c_str()) + "\"");
+				this->sink.set(this->key, json::parsing::escape_characters(value.c_str()));
 			}
 
 			/*! \brief Assigns a string value */
