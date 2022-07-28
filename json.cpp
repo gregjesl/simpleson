@@ -127,38 +127,112 @@ std::string json::parsing::read_digits(const char *input)
     return result;
 }
 
-std::string json::parsing::escape_quotes(const char *input)
+std::string json::parsing::escape_characters(const char *input)
 {
-    std::string parsed;
-    const size_t len = strlen(input);
-    for (size_t i = 0; i < len; i++)
+    std::string result = "\"";
+
+    while (!EMPTY_STRING(input))
     {
-        if (input[i] == '\"' && parsed[parsed.size() - 1] != '\\')
+        switch (*input)
         {
-            parsed += '\\';
+        case '"':
+        case '\\':
+        case '/':
+            result += "\\";
+            result += *input;
+            break;
+        case '\b':
+            result += "\\b";
+            break;
+        case '\f':
+            result += "\\f";
+            break;
+        case '\n':
+            result += "\\n";
+            break;
+        case '\r':
+            result += "\\r";
+            break;
+        case '\t':
+            result += "\\t";
+            break;
+        default:
+            result += *input;
+            break;
         }
-        parsed += input[i];
+        input++;
     }
-    return parsed;
+    result += '\"';
+    return result;
 }
 
-std::string json::parsing::unescape_quotes(const char *input)
+std::string json::parsing::unescape_characters(const char *input)
 {
-    std::string result;
-    const char *index = input;
-    while (!EMPTY_STRING(index))
-    {
-        if (strlen(index) > 1 && *index == '\\' && index[1] == '\"')
-        {
-            result += '\"';
-            index += 2;
-        }
-        else
-        {
-            result.push_back(*index);
-            index++;
+    std::string result = "";
+    size_t unicode_index = 0;
+
+    // Check for opening quotation
+    if(*input != '\"') throw json::parsing_error("Expecting opening quotation");
+    input++;
+
+    // Loop until closing quotation is found
+    while(*input != '"') {
+        if(*input != '\\') { // Character is not escaped
+            result += *input;
+            input++;
+        } else { // Character is escaped
+            // Move to next character
+            input++;
+
+            // Check for next character
+            if(EMPTY_STRING(input)) throw json::parsing_error("Expecting character");
+
+            // Check for appropriate control character
+            switch (*input)
+            {
+            case '"':
+            case '\\':
+            case '/':
+                result += *input;
+                input++;
+                break;
+            case 'b':
+                result += '\b';
+                input++;
+                break;
+            case 'f':
+                result += '\f';
+                input++;
+                break;
+            case 'n':
+                result += '\n';
+                input++;
+                break;
+            case 'r':
+                result += '\r';
+                input++;
+                break;
+            case 't':
+                result += '\t';
+                input++;
+                break;
+            case 'u':
+                // Unicode character detected
+                // TODO: See issue #20
+                // Copy all characters
+                result += "\\u";
+                input++;
+                for(unicode_index = 0; unicode_index < 3; unicode_index++) {
+                    if(EMPTY_STRING(input)) throw json::parsing_error("Expecting character");
+                    result += *input;
+                }
+            default:
+                throw json::parsing_error("Unexpected escape character");
+                break;
+            }
         }
     }
+    if(*input != '"') throw json::parsing_error("Expecting closing quotation");
     return result;
 }
 
@@ -282,7 +356,7 @@ json::parsing::parse_results json::parsing::parse(const char *input)
             if (key.type != json::jtype::jstring) throw json::parsing_error(error);
 
             // Store the key
-            result.value += "\"" + json::parsing::escape_quotes(key.value.c_str()) + "\"";
+            result.value += json::parsing::escape_characters(key.value.c_str());
             index = json::parsing::tlws(key.remainder);
 
             // Look for the colon
@@ -297,7 +371,7 @@ json::parsing::parse_results json::parsing::parse(const char *input)
             if (subvalue.type == json::jtype::not_valid) throw json::parsing_error(error);
 
             // Store the value
-            if (subvalue.type == json::jtype::jstring) result.value += "\"" + json::parsing::escape_quotes(subvalue.value.c_str()) + "\"";
+            if (subvalue.type == json::jtype::jstring) result.value += json::parsing::escape_characters(subvalue.value.c_str());
             else result.value += subvalue.value;
             index = json::parsing::tlws(subvalue.remainder);
 
@@ -328,7 +402,7 @@ json::parsing::parse_results json::parsing::parse(const char *input)
         {
             json::parsing::parse_results array_value = json::parsing::parse(index);
             if (array_value.type == json::jtype::not_valid) throw json::parsing_error(error);
-            if (array_value.type == json::jtype::jstring) result.value += "\"" + json::parsing::escape_quotes(array_value.value.c_str()) + "\"";
+            if (array_value.type == json::jtype::jstring) result.value += json::parsing::escape_characters(array_value.value.c_str());
             else result.value += array_value.value;
             index = json::parsing::tlws(array_value.remainder);
             if (*index != ',' && *index != ']') throw json::parsing_error(error);
@@ -433,7 +507,7 @@ void json::jobject::proxy::set_array(const std::vector<std::string> &values, con
     std::string value = "[";
     for (size_t i = 0; i < values.size(); i++)
     {
-        if (wrap) value += "\"" + json::parsing::escape_quotes(values[i].c_str()) + "\",";
+        if (wrap) value += json::parsing::escape_characters(values[i].c_str()) + ",";
         else value += values[i] + ",";
     }
     if(values.size() > 0) value.erase(value.size() - 1, 1);
