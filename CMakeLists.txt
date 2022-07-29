@@ -11,7 +11,7 @@ else()
 
     cmake_minimum_required (VERSION 3.8)
 
-    project(simpleson VERSION 1.0.0)
+    project(simpleson VERSION 1.0.3)
 
     add_library(${PROJECT_NAME}
         json.cpp
