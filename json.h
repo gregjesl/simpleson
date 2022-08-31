@@ -67,6 +67,8 @@ namespace json
 			not_valid ///< Value does not conform to JSON standard
 			};
 
+		jtype peek(const char input);
+
 		/*! \brief Geven a string, determines the type of value the string contains
 		 * 
 		 * @param input The string to be tested
@@ -76,6 +78,134 @@ namespace json
 		 */
 		jtype detect(const char *input);
 	}
+
+	/*! \brief Value reader */
+	class reader : protected std::string
+	{
+	public:
+		enum push_result
+		{
+			ACCEPTED, ///< The character was valid. Reading should continue. 
+			REJECTED, ///< The character was not valid. Reading should stop.
+			WHITESPACE ///< The character was whitespace. Reading should continue but the whtiespace was not stored. 
+		};
+		inline reader() : std::string(), sub_reader(NULL) { this->clear(); }
+
+		/*! \brief Resets the reader */
+		virtual void clear();
+
+		using std::string::length;
+
+		virtual push_result push(const char next);
+
+		inline virtual jtype::jtype type() const
+		{
+			return this->length() > 0 ? jtype::peek(this->front()) : json::jtype::not_valid;
+		}
+
+		virtual bool is_valid() const;
+
+		inline virtual std::string readout() const { return *this; }
+
+		inline virtual ~reader() { this->clear(); }
+
+	protected:
+		reader *sub_reader;
+		push_result push_string(const char next);
+		push_result push_array(const char next);
+		push_result push_object(const char next);
+		push_result push_number(const char next);
+		push_result push_boolean(const char next);
+		push_result push_null(const char next);
+
+		template<typename T>
+		T get_state() const
+		{
+			return static_cast<T>(this->read_state);
+		}
+
+		template<typename T>
+		void set_state(const T state)
+		{
+			this->read_state = (char)state;
+		}
+
+		enum string_reader_enum
+		{
+			STRING_EMPTY = 0,
+			STRING_OPENING_QUOTE,
+			STRING_OPEN,
+			STRING_ESCAPED,
+			STRING_CODE_POINT_START,
+			STRING_CODE_POINT_1,
+			STRING_CODE_POINT_2,
+			STRING_CODE_POINT_3,
+			STRING_CLOSED
+		};
+
+		enum number_reader_enum
+		{
+			NUMBER_EMPTY = 0,
+			NUMBER_OPEN_NEGATIVE,
+			NUMBER_ZERO,
+			NUMBER_INTEGER_DIGITS,
+			NUMBER_DECIMAL,
+			NUMBER_FRACTION_DIGITS,
+			NUMBER_EXPONENT,
+			NUMBER_EXPONENT_SIGN,
+			NUMBER_EXPONENT_DIGITS
+		};
+
+		enum array_reader_enum
+		{
+			ARRAY_EMPTY = 0,
+			ARRAY_OPEN_BRACKET,
+			ARRAY_READING_VALUE,
+			ARRAY_AWAITING_NEXT_LINE,
+			ARRAY_CLOSED
+		};
+
+		enum object_reader_enum
+		{
+			OBJECT_EMPTY = 0,
+			OBJECT_OPEN_BRACE,
+			OBJECT_READING_ENTRY,
+			OBJECT_AWAITING_NEXT_LINE,
+			OBJECT_CLOSED
+		};
+	private:
+		char read_state;
+	};
+
+	class kvp_reader : public reader
+	{
+	public:
+		inline kvp_reader() : reader()
+		{ 
+			this->clear();
+		}
+
+		/*! \brief Resets the reader */
+		inline virtual void clear() 
+		{ 
+			reader::clear();
+			this->_key.clear();
+			this->_colon_read = false;
+		}
+
+		virtual push_result push(const char next);
+
+		inline virtual bool is_valid() const
+		{
+			return reader::is_valid() && this->_key.is_valid();
+		}
+
+		virtual std::string readout() const;
+
+	private:
+		reader _key;
+		bool _colon_read;
+	};
 
 	/*! \brief Namespace used for JSON parsing functions */
 	namespace parsing
@@ -98,23 +228,17 @@ namespace json
 		 */
 		std::string read_digits(const char *input);
 
-		/*! \brief Escape control characters
-		 *
-		 * \details The quotation mark ("), reverse solidus (\), solidus (/), backspace (b), formfeed (f), linefeed (n), carriage return (r), horizontal tab (t), and Unicode character need to be escaped
-		 * @param input A string potentially containing control characters
-		 * @return A string that has all control characters escaped
-		 * @see unescape_characters
-		 */
-		std::string escape_characters(const char *input);
+		std::string decode_string(const char * input);
 
-		/*! \brief Escape control characters
+		/*! \brief 
 		 *
 		 * \details The quotation mark ("), reverse solidus (\), solidus (/), backspace (b), formfeed (f), linefeed (n), carriage return (r), horizontal tab (t), and Unicode character need to be escaped
-		 * @param input A string potentially containing control characters
-		 * @return A string that has all control characters escaped
-		 * @see escape_characters
+		 * @param input A string potentially containing escaped control characters
+		 * @return A string that has all control characters unescaped. 
+		 * \note This function will strip leading and trailing quotations. 
+		 * @see escape_string
 		 */
-		std::string unescape_characters(const char *input);
+		std::string encode_string(const char *input);
 
 		/*! \brief Structure for capturing the results of parsing */
 		struct parse_results
@@ -427,8 +551,9 @@ namespace json
 			/*! \brief Returns a string representation of the value */
 			inline std::string as_string() const
 			{
-				return json::jtype::detect(this->ref().c_str()) == json::jtype::jstring ?  
-					json::parsing::unescape_characters(this->ref().c_str()) : this->ref();
+				return json::jtype::peek(*this->ref().c_str()) == json::jtype::jstring ?
+					json::parsing::decode_string(this->ref().c_str()) :
+					this->ref();
 			}
 
 			/*! @see json::jobject::entry::as_string() */
@@ -505,7 +630,9 @@ namespace json
 			{
 				const std::vector<std::string> objs = json::parsing::parse_array(this->ref().c_str());
 				std::vector<json::jobject> results;
-				for (size_t i = 0; i < objs.size(); i++) results.push_back(json::jobject::parse(objs[i].c_str()));
+				for (size_t i = 0; i < objs.size(); i++) {
+					results.push_back(json::jobject::parse(objs[i].c_str()));
+				}
 				return results;
 			}
 
@@ -660,7 +787,7 @@ namespace json
 			const_value array(size_t index) const
 			{
 				const char *value = this->ref().c_str();
-				if(json::jtype::detect(value) != json::jtype::jarray)
+				if(json::jtype::peek(*value) != json::jtype::jarray)
 					throw std::invalid_argument("Input is not an array");
 				const std::vector<std::string> values = json::parsing::parse_array(value);
 				return const_value(values[index]);
@@ -727,7 +854,7 @@ namespace json
 			/*! \brief Assigns a string value */
 			inline void operator= (const std::string value)
 			{
-				this->sink.set(this->key, json::parsing::escape_characters(value.c_str()));
+				this->sink.set(this->key, json::parsing::encode_string(value.c_str()));
 			}
 
 			/*! \brief Assigns a string value */

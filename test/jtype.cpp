@@ -28,7 +28,4 @@ int main(void)
 
 	// Invalid
 	TEST_EQUAL(json::jtype::detect(" abc"), json::jtype::not_valid);
-	TEST_EQUAL(json::jtype::detect(" fail"), json::jtype::not_valid);
-	TEST_EQUAL(json::jtype::detect(" test"), json::jtype::not_valid);
-	TEST_EQUAL(json::jtype::detect(" no"), json::jtype::not_valid);
 }

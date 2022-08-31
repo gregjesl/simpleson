@@ -1,70 +1,56 @@
 #include "json.h"
 #include "test.h"
 
+typedef struct test_struct_struct
+{
+    const char *input;
+    const char *output;
+    json::jtype::jtype type;
+} test_struct_t;
+
+const test_struct_t test_data[] = { 
+    { "\"Hello World\"", "\"Hello World\"", json::jtype::jstring },
+    { "\"Hello World\\\"\"", "\"Hello World\\\"\"", json::jtype::jstring },
+    { "true", "true", json::jtype::jbool },
+    { "false", "false", json::jtype::jbool },
+    { "null", "null", json::jtype::jnull },
+    { "[]", "[]", json::jtype::jarray },
+    { "[\"Hello World\"]", "[\"Hello World\"]", json::jtype::jarray },
+    { "[\"Hello World\",true,false,null]", "[\"Hello World\",true,false,null]", json::jtype::jarray },
+    { "{}", "{}", json::jtype::jobject},
+    { "{\"hello\":\"world\"}", "{\"hello\":\"world\"}", json::jtype::jobject},
+    { "[{\"hello\":\"world\"},{\"hello\":\"world\"}]", "[{\"hello\":\"world\"},{\"hello\":\"world\"}]", json::jtype::jarray}
+};
+
+const char *test_numbers[] = { "0", "-0", "123", "-123", "0.123", "-0.123", "123.456", "-123.456", "123e456", "123e+456", "123e-456", "123.456e789", "123.456e+789", "123.456e-789" };
+
 int main(void)
 {
-	json::parsing::parse_results result;
-	const char *input = NULL;
+    json::reader stream;
 
-	// Parse string
-	input = " \t \n \v \f \r \"abc123 \\\"\"";
-	result = json::parsing::parse(input);
-	TEST_EQUAL(result.type, json::jtype::jstring);
-	TEST_STRING_EQUAL(result.value.c_str(), "abc123 \\\"");
+    const size_t data_points = sizeof(test_data) / sizeof(test_struct_t);
+    assert(data_points > 0);
+    size_t i,j;
 
-	// Parse numbers
-	const char *numbers[] = { "123", "-123", "123.456", "-123.456", "123e456", "123e+456", "123e-456", "123.456e789", "123.456e+789", "123.456e-789" };
-	for (int i = 0; i < 10; i++)
-	{
-		input = numbers[i];
-		result = json::parsing::parse(input);
-		TEST_EQUAL(result.type, json::jtype::jnumber);
-		TEST_STRING_EQUAL(result.value.c_str(), numbers[i]);
-	}
+    for(i = 0; i < data_points; i++) {
+        const test_struct_t data_point = test_data[i];
+        for(j = 0; j < strlen(data_point.input); j++) {
+            TEST_EQUAL(stream.push(data_point.input[j]), json::reader::ACCEPTED);
+        }
+        TEST_EQUAL(stream.type(), data_point.type);
+        TEST_STRING_EQUAL(stream.readout().c_str(), data_point.output);
+        stream.clear();
+    }
 
-	// Parse empty array
-	input = " []";
-	result = json::parsing::parse(input);
-	TEST_EQUAL(result.type, json::jtype::jarray);
-	TEST_STRING_EQUAL(result.value.c_str(), "[]");
-
-	// Parse string array
-	input = " [\"world\"]},";
-	result = json::parsing::parse(input);
-	TEST_EQUAL(result.type, json::jtype::jarray);
-	TEST_STRING_EQUAL(result.value.c_str(), "[\"world\"]");
-
-	// Parse object
-	input = " {\"hello\":\"world\"},";
-	result = json::parsing::parse(input);
-	TEST_EQUAL(result.type, json::jtype::jobject);
-	TEST_STRING_EQUAL(result.value.c_str(), "{\"hello\":\"world\"}");
-
-	// Parse array
-	input = " [{\"hello\":\"world\"},{\"hello\":\"world\"},{\"hello\":\"world\"}],";
-	result = json::parsing::parse(input);
-	TEST_EQUAL(result.type, json::jtype::jarray);
-	TEST_STRING_EQUAL(result.value.c_str(), "[{\"hello\":\"world\"},{\"hello\":\"world\"},{\"hello\":\"world\"}]");
-
-	// Parse boolean
-	const char* bools[] = { "true", "false" };
-	for (int i = 0; i < 2; i++)
-	{
-		input = bools[i];
-		result = json::parsing::parse(input);
-		TEST_EQUAL(result.type, json::jtype::jbool);
-		TEST_STRING_EQUAL(result.value.c_str(), bools[i]);
-	}
-
-	// Parse null
-	input = "null";
-	result = json::parsing::parse(input);
-	TEST_EQUAL(result.type, json::jtype::jnull);
-	TEST_STRING_EQUAL(result.value.c_str(), "null");
-
-	// Tryparse
-	json::jobject tryparse_result;
-	TEST_FALSE(json::jobject::tryparse("not json", tryparse_result));
-	TEST_TRUE(json::jobject::tryparse("{\"hello\":\"world\"}", tryparse_result));
-	TEST_STRING_EQUAL("{\"hello\":\"world\"}", tryparse_result.as_string().c_str());
+    const size_t num_num = sizeof(test_numbers) / sizeof(char*);
+    for(i = 0; i < num_num; i++) {
+        const char *data_point = test_numbers[i];
+        for(j = 0; j < strlen(data_point); j++) {
+            TEST_EQUAL(stream.push(data_point[j]), json::reader::ACCEPTED);
+        }
+        TEST_EQUAL(stream.push(' '), json::reader::REJECTED);
+        TEST_EQUAL(stream.type(), json::jtype::jnumber);
+        TEST_STRING_EQUAL(stream.readout().c_str(), data_point);
+        stream.clear();
+    }
 }
