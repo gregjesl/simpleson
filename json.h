@@ -13,6 +13,8 @@
 #include <stdexcept>
 #include <cctype>
 
+#define JSON_STREAM_OPERATION(method) size_t method(const char* data, const size_t buffer_length)
+
 /*! \brief Base namespace for simpleson */
 namespace json
 {
@@ -53,6 +55,157 @@ namespace json
 		inline virtual ~parsing_error() throw() { }
 	};
 
+	/*! \brief Class for representing UTF8 strings */
+	class utf8_string
+	{
+	protected:
+		/*! \brief The stored value of the string */
+		std::string value;
+
+		/*! \brief Number of code points in the string
+		 *
+		 * The number of code points will be less than or equal to the number of bytes in the string. 
+		 */
+		size_t codepoints;
+	
+	public:
+		/*! \brief Exception for invalid UTF8 strings */
+		class invalid_utf8_string : public std::invalid_argument
+		{
+		public:
+			/*! \brief Constructor */
+			inline invalid_utf8_string() : std::invalid_argument("UTF8 string is invalid") { }
+
+			/*! \brief Destructor */
+			inline virtual ~invalid_utf8_string() throw() { }
+		};
+
+		/*! \brief Default constructor */
+		inline utf8_string()
+			: codepoints(0)
+		{ }
+
+		/*! \brief Copy constructor */
+		inline utf8_string(const utf8_string &other)
+			: value(other.value),
+			  codepoints(other.codepoints)
+		{ }
+
+		/*! \brief Destructor */
+		inline virtual ~utf8_string() { }
+
+		/*! \brief The number of Unicode code points in the string */
+		inline size_t length() const { return this->codepoints; }
+
+		/*! \brief The number of bytes in the string
+		 *
+		 * For the nubmer of Unicode code points in the string, see @ref length()
+		 */
+		inline size_t size() const { return this->value.size(); }
+
+		/*! \brief Clears a stream */
+		virtual void clear();
+
+		/*! \brief Ingests a null-terminated string of characters */
+		void from_string(const char *input);
+
+		/*! \brief Ingests a string */
+		void from_string(const std::string input);
+
+		/*! \brief Casts from a null-terminated string of characters */
+		inline utf8_string& operator=(const char *input) { this->from_string(input); return *this; }
+
+		/*! \brief Casts from a string */
+		inline utf8_string& operator=(const std::string input) { this->from_string(input); return *this; }
+
+		/*! \brief Returns the stream that has been read
+		 * 
+		 * \return The string that has been read
+		 * 
+		 * \throws @ref invalid_utf8_string if the underlying value is not valid. 
+		 */
+		virtual inline std::string to_string() const { return this->value; }
+
+		/*! \brief Casts the stream to a string
+		 *
+		 * \see to_string()
+		 */
+		inline operator std::string() { return this->to_string(); }
+	};
+
+	/*! \brief Class for parsing UTF-8 streams */
+	class utf8_stream : public utf8_string
+	{
+	private:
+		/*! \brief Container for a partially-parsed character */
+		std::vector<char> point;
+
+	public:
+		/*! \brief Default constructor */
+		inline utf8_stream()
+			: utf8_string()
+		{ }
+
+		/*! \brief Copy constructor */
+		inline utf8_stream(const utf8_stream &other)
+			: utf8_string(other),
+			  point(other.point)
+		{ }
+
+		/*! \brief Destructor */
+		inline virtual ~utf8_stream() { }
+
+		/*! \brief Appends a character to the string
+		 *
+		 * If the character is an incomplete Unicode point, then the value is stored in @ref point
+		 */
+		void push(const char value);
+
+		/*! \brief Read  a null-terminated string
+		 * 
+		 * \param input Null-terminated UTF-8 string
+		 * 
+		 * \return The number of bytes read
+		 * 
+		 * \throws Invalid arguement if the pointer is null
+		 * 
+		 * \warning The behavior of this function with a string that is not null-terminated is undefined. See @ref read(input, bytes) 
+		 */
+		size_t read(const char *value);
+
+		/*! \brief Read a series of bytes
+		 * 
+		 * \param input Series of UTF-8 bytes
+		 * 
+		 * \throws Invalid arguement if the pointer is null
+		 * 
+		 * \note If the null terminator is encountered, then the method will cease reading the input and return the number of bytes read
+		 * 
+		 * \return The number of bytes read
+		 */
+		size_t read(const char *value, const size_t max_bytes);
+
+		/*! \brief Flag for string validity
+		 *
+		 * \return `true` if the UTF-8 string is valid or `false` if the string is invalid
+		 * 
+		 * A string is invalid if only a portion of a Unicode character is read
+		 */
+		inline bool is_valid() const { return this->point.size() == 0; }
+
+		/*! \brief Returns the stream that has been read
+		 * 
+		 * \return The string that has been read
+		 * 
+		 * \throws @ref invalid_utf8_string if the underlying value is not valid. 
+		 */
+		inline std::string to_string() const
+		{
+			if(this->point.size() > 0) throw invalid_utf8_string();
+			return utf8_string::to_string();
+		}
+	};
+
 	/* \brief Namespace for handling of JSON data types */
 	namespace jtype
 	{
@@ -89,6 +242,16 @@ namespace json
 		 * \warning The behavior of this function with string that is not null-terminated is undefined
 		 */
 		const char* tlws(const char *start);
+
+		/*! \brief (t)rims (l)eading (w)hite (s)pace
+		 *
+		 * \details Given a string, returns a pointer to the first character that is not white space. Spaces, tabs, and carriage returns are all considered white space. 
+		 * @param start The string to examine
+		 * @param max_bytes The maximum number of bytes to examine
+		 * @return A pointer within the input string that points at the first charactor that is not white space
+		 * \note If the string consists of entirely white space, then the null terminator is returned
+		 */
+		const char* tlws(const char *start, const size_t max_bytes);
 
 		/*! \brief Reads a set of digits from a string
 		 * 
@@ -200,7 +363,7 @@ namespace json
 	 */
 	class jobject
 	{
-	private:
+	protected:
 		/*! \brief The container used to store the object's data */
 		std::vector<kvp> data;
 

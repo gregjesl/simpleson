@@ -7,7 +7,7 @@ int main(void)
 	const char *input =
 		"{"
 		"	\"number\":123.456,"
-		"	\"string\":\"hello \\\" world\","
+		"	\"string\":\"hello \\\" Λ world\","
 		"	\"array\":[1,2,3],"
 		"	\"boolean\":true,"
 		"	\"isnull\":null,"
@@ -19,7 +19,7 @@ int main(void)
 	json::jobject result = json::jobject::parse(input);
 	TEST_FALSE(result.is_array());
 	TEST_STRING_EQUAL(result.get("number").c_str(), "123.456");
-	TEST_STRING_EQUAL(result.get("string").c_str(), "\"hello \\\" world\"");
+	TEST_STRING_EQUAL(result.get("string").c_str(), "\"hello \\\" Λ world\"");
 	TEST_STRING_EQUAL(result.get("array").c_str(), "[1,2,3]");
 	TEST_STRING_EQUAL(result.get("boolean").c_str(), "true");
 	TEST_STRING_EQUAL(result.get("isnull").c_str(), "null");
