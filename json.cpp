@@ -197,11 +197,9 @@ const char* json::parsing::tlws(const char *input, const size_t max_bytes)
     return output - input < max_bytes ? output : NULL;
 }
 
-json::jtype::jtype json::jtype::detect(const char *input)
+json::jtype::jtype json::jtype::detect(const char input)
 {
-    const char *start = json::parsing::tlws(input);
-    if (EMPTY_STRING(start)) return json::jtype::not_valid;
-    switch (*start)
+    switch (input)
     {
     case '[':
         return json::jtype::jarray;
@@ -823,4 +821,259 @@ std::string json::jobject::pretty(unsigned int indent_level) const
         result += "}";
     }
     return result;
+}
+
+void json::jstream::push_case_insensitive(const char value, const char upper, const char lower)
+{
+    if((value == upper) || (value == lower)) {
+        this->key.push(value);
+    } else {
+        throw json::parsing_error(this->error_str);
+    }
+}
+
+json::jstream::state_t json::jstream::push(const char input)
+{
+    switch (this->state)
+    {
+    case UNINITIALIZED:
+        if(std::isspace(input)) return UNINITIALIZED;
+        switch (input)
+        {
+        case '{':
+            // Object detected
+            this->container = json::jobject(false);
+            this->state = OPENED;
+            break;
+        case '[':
+            // Array detected
+            this->container = json::jobject(true);
+            this->state = OPENED;
+            break;
+        default:
+            throw json::parsing_error("Expecting '{' or '['");
+            break;
+        }
+        break;
+    case OPENED:
+        if(std::isspace(input)) return OPENED;
+        switch (input)
+        {
+        case '}':
+            if(this->container.is_array()) throw json::parsing_error(error_str);
+            this->key.clear();
+            this->value.clear();
+            this->value_type = json::jtype::not_valid;
+            this->state = CLOSED;
+            break;
+        case ']':
+            if(!this->container.is_array()) throw json::parsing_error(error_str);
+            this->key.clear();
+            this->value.clear();
+            this->value_type = json::jtype::not_valid;
+            this->state = CLOSED;
+            break;
+        default:
+            this->state = this->container.is_array() ? AWAITING_VALUE : AWAITING_KEY;
+            return this->push(input);
+        }
+        break;
+    case AWAITING_KEY:
+        // This case should not be used for arrays
+        assert(!this->container.is_array());
+        if(std::isspace(input)) return AWAITING_KEY;
+        if(input != '"') throw json::parsing_error("Expecting '\"'");
+        key.push(input);
+        this->state = STREAMING_KEY;
+        break;
+    case STREAMING_KEY:
+        // This case should not be used for arrays
+        assert(!this->container.is_array());
+        // Check for end of key
+        if(input == '"') {
+            // This should not be the opening quotation
+            assert(this->key.length() > 0);
+
+            // Verify the UTF8 string
+            if(!this->key.is_valid()) throw json::utf8_string::invalid_utf8_string();
+
+            // #todo Handle quotations in keys
+            this->key.push(input);
+            this->state = AWAITING_SEPERATOR;
+        } else {
+            this->key.push(input);
+        }
+        break;
+    case AWAITING_SEPERATOR:
+        // This case should not be used for arrays
+        assert(!this->container.is_array());
+        // Check for a seperator
+        if(std::isspace(input)) return AWAITING_SEPERATOR;
+        if(input != ':') throw json::parsing_error("Expecting ':'");
+        this->state = AWAITING_VALUE;
+        break;
+    case AWAITING_VALUE:
+        assert(this->value.size() == 0);
+        assert(this->value_type == json::jtype::not_valid);
+        if(std::isspace(input)) return AWAITING_VALUE;
+        this->value_type = json::jtype::detect(input);
+        switch (this->value_type)
+        {
+        case jtype::jstring:
+        case jtype::jnumber:
+        case jtype::jnull:
+        case jtype::jbool:
+            this->value.push(input);
+            break;
+        case jtype::jobject:
+        case jtype::jarray:
+            this->sub_object = new jstream();
+            this->sub_object->push(input);
+            break;
+        case jtype::not_valid:
+            throw json::parsing_error(error_str);
+            break;
+        }
+        this->state = STREAMING_VALUE;
+        break;
+    case STREAMING_VALUE:
+        switch (this->value_type)
+        {
+        case jtype::jstring:
+            // #todo
+            #error
+            break;
+        case jtype::jnumber:
+            // #todo
+            #error
+            break;
+        case jtype::jbool:
+            switch (this->value[0])
+            {
+            case 't':
+            case 'T':
+                switch (this->value.length())
+                {
+                case 1:
+                    this->push_case_insensitive(input, 'R', 'r');
+                    break;
+                case 2:
+                    this->push_case_insensitive(input, 'U', 'u');
+                    break;
+                case 3:
+                    this->push_case_insensitive(input, 'E', 'e');
+                    this->interate();
+                    this->state = ENTRY_COMPLETE;
+                    break;
+                default:
+                    // This should not occur
+                    assert(false);
+                    break;
+                }
+                break;
+            case 'f':
+            case 'F':
+                switch (this->value.length())
+                {
+                case 1:
+                    this->push_case_insensitive(input, 'A', 'a');
+                    break;
+                case 2:
+                    this->push_case_insensitive(input, 'L', 'l');
+                    break;
+                case 3:
+                    this->push_case_insensitive(input, 'S', 's');
+                    break;
+                case 4:
+                    this->push_case_insensitive(input, 'E', 'e');
+                    this->interate();
+                    this->state = ENTRY_COMPLETE;
+                    break;
+                default:
+                    // This should not occur
+                    assert(false);
+                    break;
+                }
+                break;
+            default:
+                // This should not occur
+                assert(false);
+                break;
+            }
+            this->value.push(input);
+            break;
+        case jtype::jnull:
+            // The first character should be an 'n' or 'N'
+            assert((this->value[0] == 'n') || (this->value[0] == 'N'));
+
+            switch (this->key.length())
+            {
+            case 1:
+                if(input == 'u' || input == 'U') {
+                    this->value.push(input);
+                } else {
+                    throw json::parsing_error(error_str);
+                }
+                break;
+            case 2:
+                if(input == 'l' || input == 'L') {
+                    this->value.push(input);
+                } else {
+                    throw json::parsing_error(error_str);
+                }
+                break;
+            case 3:
+                if(input == 'l' || input == 'L') {
+                    this->value.push(input);
+                } else {
+                    throw json::parsing_error(error_str);
+                }
+                this->interate();
+                this->state = ENTRY_COMPLETE;
+                break;
+            default:
+                // This should never happen
+                assert(false);
+                break;
+            }
+            break;
+        case jtype::jobject:
+        case jtype::jarray:
+            this->sub_object->push(input);
+            if(this->sub_object->state == CLOSED) {
+                this->interate();
+                delete this->sub_object;
+                this->sub_object = NULL;
+                this->state = ENTRY_COMPLETE;
+            }
+            break;
+        case jtype::not_valid:
+            throw json::parsing_error(error_str);
+            break;
+        }
+        break;
+    case ENTRY_COMPLETE:
+        if(std::isspace(input)) return ENTRY_COMPLETE;
+        switch (input)
+        {
+        case ',':
+            if(container.size() == 0) throw json::parsing_error("Unexpected character encountered");
+            this->key.clear();
+            this->value.clear();
+            this->value_type = json::jtype::not_valid;
+            break;
+        case '}':
+        case ']':
+            this->state = OPENED;
+            return this->push(input);
+        default:
+            throw json::parsing_error("Unexpected character encountered");
+            break;
+        }
+        break;
+    case CLOSED:
+        // Do nothing
+        break;
+    }
+    return this->state;
 }

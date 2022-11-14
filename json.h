@@ -103,8 +103,11 @@ namespace json
 		 */
 		inline size_t size() const { return this->value.size(); }
 
-		/*! \brief Clears a stream */
+		/*! \brief Clears the string */
 		virtual void clear();
+
+		/*! \brief Returns a byte from the string */
+		inline char operator[](const size_t index) const { return this->value.at(index); }
 
 		/*! \brief Ingests a null-terminated string of characters */
 		void from_string(const char *input);
@@ -220,14 +223,13 @@ namespace json
 			not_valid ///< Value does not conform to JSON standard
 			};
 
-		/*! \brief Geven a string, determines the type of value the string contains
+		/*! \brief Geven a character, determines the expected value type
 		 * 
-		 * @param input The string to be tested
-		 * @return The type of JSON value encountered
+		 * @param input The character to be tested
+		 * @return The type of JSON value expected to be encountered
 		 * 
-		 * \note The function will only determine the type of the first value encountered in the string. 
 		 */
-		jtype detect(const char *input);
+		jtype detect(const char input);
 	}
 
 	/*! \brief Namespace used for JSON parsing functions */
@@ -1037,6 +1039,82 @@ namespace json
 		 * @return A "pretty" version of the serizlied object or array
 		 */
 		std::string pretty(unsigned int indent_level = 0) const;
+	};
+
+	class jstream
+	{
+	private:
+		/*! \brief An object containing the parsed entries */
+		jobject container;
+
+		typedef enum state_enum 
+		{
+			UNINITIALIZED,
+			OPENED,
+			AWAITING_KEY,
+			STREAMING_KEY,
+			AWAITING_SEPERATOR,
+			AWAITING_VALUE,
+			STREAMING_VALUE,
+			ENTRY_COMPLETE,
+			CLOSED
+		} state_t;
+
+		/*! \brief The current state of the readout */
+		state_t state;
+
+		/*! \brief The key being streamed */
+		utf8_stream key;
+
+		/*! \brief The value being streamed */
+		utf8_stream value;
+
+		/*! \brief The sub-object being streamed */
+		jstream *sub_object;
+
+		/*! \brief The type of value being streamed */
+		json::jtype::jtype value_type;
+
+		/*! \brief The error string used for unexpected characters */
+		const char *error_str = "Unexpected error encountered";
+
+		/*! \brief Push a case-insenstive character to the value string */
+		void push_case_insensitive(const char value, const char upper, const char lower);
+
+		/*! \brief Store the key (if an object) and the value */
+		void interate();
+
+	public:
+		/*! \brief Default constructor */
+		inline jstream() 
+			: state(UNINITIALIZED),
+			  sub_object(NULL),
+			  value_type(json::jtype::not_valid)
+		{ }
+
+		/*! \brief Copy constructor */
+		inline jstream(const jstream &other)
+			: state(other.state),
+			  key(other.key),
+			  value(other.value),
+			  sub_object(NULL),
+			  value_type(other.value_type)
+		{ 
+			if(other.sub_object != NULL) {
+				this->sub_object = new jstream(other);
+			}
+		}
+
+		/*! \brief Destructor */
+		virtual inline ~jstream()
+		{
+			if(this->sub_object != NULL) {
+				delete this->sub_object;
+			}
+		}
+
+		/*! \brief Read a character */
+		state_t push(const char input);
 	};
 }
 
