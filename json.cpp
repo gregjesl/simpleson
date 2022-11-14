@@ -26,14 +26,6 @@
  */
 #define END_CHARACTER_ENCOUNTERED(obj, index) (obj.is_array() ? *index == ']' : *index == '}')
 
-/*! \brief Calculates the remaining bytes in a buffer
- *
- * @param buffer The pointer to the start of the buffer
- * @param pointer The position of the read pointer
- * @param buffer_length The total length of the buffer
- */
-#define REMAINING_BUFFER_LENGTH(buffer, pointer, buffer_length) (buffer_length - (pointer - buffer))
-
 /*! \brief Format used for integer to string conversion */
 const char * INT_FORMAT = "%i";
 
@@ -55,146 +47,11 @@ const char * FLOAT_FORMAT = "%f";
 /*! \brief Format used for double floating-opint number to string conversion */
 const char * DOUBLE_FORMAT = "%lf";
 
-void json::utf8_string::clear() 
-{
-    this->value.clear();
-    this->codepoints = 0;
-}
-
-void json::utf8_string::from_string(const char *input)
-{
-    json::utf8_stream stream;
-    stream.read(input);
-    if(!stream.is_valid()) throw json::utf8_string::invalid_utf8_string();
-    *this = stream;
-}
-
-void json::utf8_string::from_string(const std::string input)
-{
-    this->clear();
-    if(input.size() > 0) {
-        json::utf8_stream stream;
-        stream.read(&input[0]);
-        if(!stream.is_valid()) throw json::utf8_string::invalid_utf8_string();
-        *this = stream;
-    } else {
-        this->clear();
-    }
-}
-
-void json::utf8_stream::push(const char value)
-{
-    const uint8_t one_byte_mask = 127;
-    const uint8_t two_byte_mask = 192; // 110xxxxx
-    const uint8_t three_byte_mask = 224; // 1110xxxx
-    const uint8_t four_byte_mask = 240; // 11110xxx
-    const uint8_t multibyte_mask = 128; // 10xxxxxx
-
-    // Check for existing partial code point
-    if(this->point.size() > 0) {
-
-        // There should never be more than three bytes stored
-        assert(this->point.size() < 4);
-
-        // The point should have the multibyte flag
-        if((value & multibyte_mask) != multibyte_mask) throw json::utf8_string::invalid_utf8_string();
-
-        // Check the expected length
-        if((point.at(0) & two_byte_mask) == two_byte_mask) {
-
-            // Finish the point
-            this->value += point.at(0);
-            this->value += value;
-            this->codepoints++;
-            this->point.clear();
-        } 
-        else if((point.at(0) & three_byte_mask) == three_byte_mask) {
-            
-            // Add the point
-            this->point.push_back(value);
-
-            // Check for completion
-            if(this->point.size() == 3) {
-                this->value.push_back(this->point.at(0));
-                this->value.push_back(this->point.at(1));
-                this->value.push_back(this->point.at(2));
-                this->codepoints++;
-                this->point.clear();
-            }
-        }
-        else
-        {
-            assert((this->point.at(0) & four_byte_mask) == four_byte_mask);
-            // Add the point
-            this->point.push_back(value);
-
-            // Check for completion
-            if(this->point.size() == 4) {
-                this->value.push_back(this->point.at(0));
-                this->value.push_back(this->point.at(1));
-                this->value.push_back(this->point.at(2));
-                this->value.push_back(this->point.at(3));
-                this->codepoints++;
-                this->point.clear();
-            }
-        }
-        // No additional logic needed
-        return;
-    }
-
-    // At this point, there should not be a partial value
-    assert(this->point.size() == 0);
-
-    // Check for a multi-byte value
-    if((value & one_byte_mask) == value) {
-        // One-byte value detected
-        this->value += value;
-        this->codepoints++;
-        return;
-    }
-    
-    // At this point, it should be a new multi-point value
-    assert((value & two_byte_mask) == two_byte_mask || (value & three_byte_mask) == three_byte_mask || (value & four_byte_mask) == four_byte_mask);
-    this->point.push_back(value);
-}
-
-size_t json::utf8_stream::read(const char *value)
-{
-    if(value == NULL) throw std::invalid_argument("value");
-
-    const char *reader = value;
-    while(*reader != '\0') {
-        this->push(*reader);
-        reader++;
-    }
-    return reader - value;
-}
-
-size_t json::utf8_stream::read(const char *value, const size_t max_bytes)
-{
-    if(value == NULL) throw std::invalid_argument("value");
-
-    const char *reader = value;
-    while(reader - value < max_bytes) {
-        if(*reader == '\0') break;
-        this->push(*reader);
-        reader++;
-    }
-    return reader - value;
-}
-
 const char* json::parsing::tlws(const char *input)
 {
     const char *output = input;
     while(!EMPTY_STRING(output) && std::isspace(*output)) output++;
-    return !EMPTY_STRING(output) ? output : NULL;
-}
-
-const char* json::parsing::tlws(const char *input, const size_t max_bytes)
-{
-    const char *output = input;
-    while(output - input < max_bytes && !EMPTY_STRING(output) && std::isspace(*output)) output++;
-    return output - input < max_bytes ? output : NULL;
+    return output;
 }
 
 json::jtype::jtype json::jtype::detect(const char *input)
@@ -226,10 +83,10 @@ json::jtype::jtype json::jtype::detect(const char *input)
         return json::jtype::jnumber;
     case 't':
     case 'f':
-        return json::jtype::jbool;
+        return (strncmp(start, "true", 4) == 0 || strncmp(start, "false", 5) == 0) ? json::jtype::jbool : json::jtype::not_valid;
         break;
     case 'n':
-        return json::jtype::jnull;
+        return (strncmp(start, "null", 4) == 0) ? json::jtype::jnull : json::jtype::not_valid;
         break;
     default:
         return json::jtype::not_valid;
