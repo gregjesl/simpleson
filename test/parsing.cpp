@@ -29,7 +29,6 @@ int main(void)
     json::reader stream;
 
     const size_t data_points = sizeof(test_data) / sizeof(test_struct_t);
-    TEST_TRUE(data_points > 0);
     size_t i,j;
 
     for(i = 0; i < data_points; i++) {
@@ -41,6 +40,9 @@ int main(void)
         TEST_STRING_EQUAL(stream.readout().c_str(), data_point.output);
         stream.clear();
     }
+
+    // Verify iteration through the data
+    TEST_TRUE(i > 0);
 
     const size_t num_num = sizeof(test_numbers) / sizeof(char*);
     for(i = 0; i < num_num; i++) {
