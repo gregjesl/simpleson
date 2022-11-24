@@ -99,6 +99,12 @@ namespace json
 		/*! \brief Length field exposed */
 		using std::string::length;
 
+		/*! \brief Front method exposed */
+		using std::string::front;
+
+		/*! \brief Back method exposed */
+		using std::string::back;
+
 		/*!\ brief Pushes a value to the back of the reader 
 		 *
 		 * @param next the value to be pushed

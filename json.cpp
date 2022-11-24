@@ -186,7 +186,6 @@ bool json::reader::is_valid() const
             return true;
         default:
             return false;
-            break;
         }
     case jtype::jobject:
         return this->get_state<object_reader_enum>() == OBJECT_CLOSED;
@@ -195,6 +194,7 @@ bool json::reader::is_valid() const
     case jtype::not_valid:
         return false;
     }
+    throw std::logic_error("Unexpected return");
 }
 
 bool is_control_character(const char input)
@@ -290,6 +290,7 @@ json::reader::push_result json::reader::push_string(const char next)
     case STRING_CLOSED:
         return REJECTED;
     }
+    throw std::logic_error("Unexpected return");
 }
 
 json::reader::push_result json::reader::push_array(const char next)
@@ -357,6 +358,7 @@ json::reader::push_result json::reader::push_array(const char next)
     case ARRAY_CLOSED:
         return REJECTED;
     }
+    throw std::logic_error("Unexpected return");
 }
 
 json::reader::push_result json::reader::push_object(const char next)
@@ -430,6 +432,7 @@ json::reader::push_result json::reader::push_object(const char next)
     case OBJECT_CLOSED:
         return REJECTED;
     }
+    throw std::logic_error("Unexpected return");
 }
 
 json::reader::push_result json::reader::push_number(const char next)
@@ -514,6 +517,7 @@ json::reader::push_result json::reader::push_number(const char next)
         }
         return REJECTED;
     }
+    throw std::logic_error("Unexpected return");
 }
 
 json::reader::push_result json::reader::push_boolean(const char next)
