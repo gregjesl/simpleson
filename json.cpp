@@ -4,6 +4,7 @@
 
 #include "json.h"
 #include <string.h>
+#include <assert.h>
 
 /*! \brief Checks for an empty string
  * 
