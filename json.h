@@ -89,97 +89,147 @@ namespace json
 			REJECTED, ///< The character was not valid. Reading should stop.
 			WHITESPACE ///< The character was whitespace. Reading should continue but the whtiespace was not stored. 
 		};
+
+		/*! \brief Reader constructor */
 		inline reader() : std::string(), sub_reader(NULL) { this->clear(); }
 
 		/*! \brief Resets the reader */
 		virtual void clear();
 
+		/*! \brief Length field exposed */
 		using std::string::length;
 
+		/*!\ brief Pushes a value to the back of the reader 
+		 *
+		 * @param next the value to be pushed
+		 * \returns `ACCEPTED` if the value was added to the reader, `WHITESPACE` if the input was whitespace that was not stored, and `REJECTED` is the input was invalid for the value type
+		 */
 		virtual push_result push(const char next);
 
+		/*!\brief Checks the value
+		 *
+		 * \returns The type of value stored in the reader, or `not_valid` if no value is stored
+		 */
 		inline virtual jtype::jtype type() const
 		{
 			return this->length() > 0 ? jtype::peek(this->front()) : json::jtype::not_valid;
 		}
 
+		/*! \brief Checks if the stored value is valid 
+		 * 
+		 * \returns `true` if the stored value is valid, `false` otherwise 
+		 */
 		virtual bool is_valid() const;
 
+		/*! \brief Returns the stored value 
+		 *
+		 * \returns A string containing the stored value
+		 * \warning This method will return the value regardless of the state of the value, valid or not
+		 */
 		inline virtual std::string readout() const { return *this; }
 
+		/*! \brief Destructor */
 		inline virtual ~reader() { this->clear(); }
 
 	protected:
+		/*! \brief The subreader used during reading
+		 * 
+		 * Arrays and objects will use a sub reader to store underlying values
+		 */
 		reader *sub_reader;
+
+		/*! \brief Pushes a character to a string value */
 		push_result push_string(const char next);
+
+		/*! \brief Pushes a character to an array value */
 		push_result push_array(const char next);
+
+		/*! \brief Pushes a character to an object value */
 		push_result push_object(const char next);
+
+		/*! \brief Pushes a character to a number value */
 		push_result push_number(const char next);
+
+		/*! \brief Pushes a character to a boolean value */
 		push_result push_boolean(const char next);
+
+		/*! \brief Pushes a character to a null value */
 		push_result push_null(const char next);
 
+		/*! \brief Returns the stored state 
+		 * 
+		 * This template is intended for use with #string_reader_enum, #number_reader_enum, #array_reader_enum, and #object_reader_enum
+		 */
 		template<typename T>
 		T get_state() const
 		{
 			return static_cast<T>(this->read_state);
 		}
 
+		/*! \brief Stores the reader state
+		 *
+		 * This template is intended for use with #string_reader_enum, #number_reader_enum, #array_reader_enum, and #object_reader_enum
+		 */
 		template<typename T>
 		void set_state(const T state)
 		{
 			this->read_state = (char)state;
 		}
 
+		/*! \brief Enumeration of the state machine for strings */
 		enum string_reader_enum
 		{
-			STRING_EMPTY = 0,
-			STRING_OPENING_QUOTE,
-			STRING_OPEN,
-			STRING_ESCAPED,
-			STRING_CODE_POINT_START,
-			STRING_CODE_POINT_1,
-			STRING_CODE_POINT_2,
-			STRING_CODE_POINT_3,
-			STRING_CLOSED
+			STRING_EMPTY = 0, ///< No values have been read
+			STRING_OPENING_QUOTE, ///< The opening quote has been read. Equivalant to #STRING_OPEN, but used for debugging the state
+			STRING_OPEN, ///< The opening quote has been read and the last character was not an escape character
+			STRING_ESCAPED, ///< The last character was an reverse solidus (\), indicating the next character should be a control character 
+			STRING_CODE_POINT_START, ///< An encoded unicode character is encountered. Expecting four following hex digits. 
+			STRING_CODE_POINT_1, ///< An encoded unicode character is encountered. Expecting three following hex digits (one has already been read). 
+			STRING_CODE_POINT_2, ///< An encoded unicode character is encountered. Expecting two following hex digits (two have already been read). 
+			STRING_CODE_POINT_3, ///< An encoded unicode character is encountered. Expecting one following hex digit (three has already been read). 
+			STRING_CLOSED ///< The closing quote has been read. Reading should cease. 
 		};
 
 		enum number_reader_enum
 		{
-			NUMBER_EMPTY = 0,
-			NUMBER_OPEN_NEGATIVE,
-			NUMBER_ZERO,
-			NUMBER_INTEGER_DIGITS,
-			NUMBER_DECIMAL,
-			NUMBER_FRACTION_DIGITS,
-			NUMBER_EXPONENT,
-			NUMBER_EXPONENT_SIGN,
-			NUMBER_EXPONENT_DIGITS
+			NUMBER_EMPTY = 0, ///< No values have been read
+			NUMBER_OPEN_NEGATIVE, ///< A negative value has been read as the first character
+			NUMBER_ZERO, ///< A zero has been read as an integer value
+			NUMBER_INTEGER_DIGITS, ///< Integer digits were the last values read
+			NUMBER_DECIMAL, ///< A decimal point was the last value read
+			NUMBER_FRACTION_DIGITS, ///< A decimal point and subsequent digits were the last values read
+			NUMBER_EXPONENT, ///< An exponent indicator has been read
+			NUMBER_EXPONENT_SIGN, ///< An exponent sign has been read
+			NUMBER_EXPONENT_DIGITS ///< An exponent indicator and subsequent digits were the last values read
 		};
 
 		enum array_reader_enum
 		{
-			ARRAY_EMPTY = 0,
-			ARRAY_OPEN_BRACKET,
-			ARRAY_READING_VALUE,
-			ARRAY_AWAITING_NEXT_LINE,
-			ARRAY_CLOSED
+			ARRAY_EMPTY = 0, ///< No values have been read
+			ARRAY_OPEN_BRACKET, ///< The array has been opened
+			ARRAY_READING_VALUE, ///< An array value is being read
+			ARRAY_AWAITING_NEXT_LINE, ///< An array value has been read and a comma was encountered. Expecting new line. 
+			ARRAY_CLOSED ///< The array has been fully read. Reading should stop. 
 		};
 
 		enum object_reader_enum
 		{
-			OBJECT_EMPTY = 0,
-			OBJECT_OPEN_BRACE,
-			OBJECT_READING_ENTRY,
-			OBJECT_AWAITING_NEXT_LINE,
-			OBJECT_CLOSED
+			OBJECT_EMPTY = 0, ///< No values have been read
+			OBJECT_OPEN_BRACE, ///< The object has been opened
+			OBJECT_READING_ENTRY, ///< An object key value pair is being read
+			OBJECT_AWAITING_NEXT_LINE, ///< An object key value pair has been read and a comma was encountered. Expecting new line. 
+			OBJECT_CLOSED ///< The object has been fully read. Reading should stop. 
 		};
 	private:
+		/*! \brief Storage for the current state of the reader */
 		char read_state;
 	};
 
+	/*! \brief Class for reading object key value pairs */
 	class kvp_reader : public reader
 	{
 	public:
+		/*! \brief Constructor */
 		inline kvp_reader() : reader()
 		{ 
 			this->clear();
@@ -193,17 +243,32 @@ namespace json
 			this->_colon_read = false;
 		}
 
+		/*!\ brief Pushes a value to the back of the reader 
+		 *
+		 * \see reader::push
+		 */
 		virtual push_result push(const char next);
 
+		/*! \brief Checks if the stored value is valid 
+		 * 
+		 * \returns `true` if the both the key and value are valid, `false` otherwise 
+		 */
 		inline virtual bool is_valid() const
 		{
 			return reader::is_valid() && this->_key.is_valid();
 		}
 
+		/*! \brief Reads out the key value pair
+		 *
+		 * \returns JSON-encoded key and JSON-encoded value seperated by a colon (:)
+		 */
 		virtual std::string readout() const;
 
 	private:
+		/*! \brief Reader for reading the key */
 		reader _key;
+
+		/*! \brief Flag for tracking whether the colon has been encountered */
 		bool _colon_read;
 	};
 
@@ -228,15 +293,23 @@ namespace json
 		 */
 		std::string read_digits(const char *input);
 
+		/*! \brief Decodes a string in JSON format
+		 *
+		 * \details The quotation mark ("), reverse solidus (\), solidus (/), backspace (b), formfeed (f), linefeed (n), carriage return (r), horizontal tab (t), and Unicode character will be unescaped
+		 * @param input A string, encapsulated in quotations ("), potentially containing escaped control characters
+		 * @return A string with control characters un-escaped
+		 * \note This function will strip leading and trailing quotations. 
+		 * @see encode_string
+		 */
 		std::string decode_string(const char * input);
 
-		/*! \brief 
+		/*! \brief Encodes a string in JSON format
 		 *
-		 * \details The quotation mark ("), reverse solidus (\), solidus (/), backspace (b), formfeed (f), linefeed (n), carriage return (r), horizontal tab (t), and Unicode character need to be escaped
-		 * @param input A string potentially containing escaped control characters
-		 * @return A string that has all control characters unescaped. 
-		 * \note This function will strip leading and trailing quotations. 
-		 * @see escape_string
+		 * \details The quotation mark ("), reverse solidus (\), solidus (/), backspace (b), formfeed (f), linefeed (n), carriage return (r), horizontal tab (t), and Unicode character will be escaped
+		 * @param input A string potentially containing control characters
+		 * @return A string that has all control characters escaped with a reverse solidus (\)
+		 * \note This function will add leading and trailing quotations. 
+		 * @see decode_string
 		 */
 		std::string encode_string(const char *input);
 
