@@ -99,11 +99,16 @@ namespace json
 		/*! \brief Length field exposed */
 		using std::string::length;
 
+		#if __GNUC__ && __GNUC__ < 11
+		inline char front() const { return this->at(0); }
+		inline char back() const { return this->at(this->length() - 1); }
+		#else
 		/*! \brief Front method exposed */
 		using std::string::front;
 
 		/*! \brief Back method exposed */
 		using std::string::back;
+		#endif
 
 		/*!\ brief Pushes a value to the back of the reader 
 		 *
