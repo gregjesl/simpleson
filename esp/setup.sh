@@ -2,8 +2,7 @@
 apt-get install -y git wget flex bison gperf python3 python3-venv cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
 # Check the current version of python
 python --version
-python3 -m venv myenv
-. ./myenv/bin/activate
+. $HOME/venv3.11/bin/activate
 type python
 # Should be python v3.X
 python --version
