@@ -1,0 +1,20 @@
+version: '1.1.0.{build}'
+
+image:
+- Ubuntu
+
+platform:
+  - x64
+  
+configuration:
+- Release
+
+install:
+  - sh: sudo ./esp/setup.sh
+
+build_script:
+  - idf.py build
+
+test_script:
+  - ps: cd _builds
+  - ctest -VV -C %config%
