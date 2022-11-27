@@ -1,7 +1,6 @@
 #!/bin/bash 
 # Pyenv dependencies
 apt-get install -y make build-essential git libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev xz-utils tk-dev
-curl https://pyenv.run | bash
 export PYENV_ROOT="$HOME/.pyenv"
 if [ -n "${USE_GIT_URI}" ]; then
   GITHUB="git://github.com"
