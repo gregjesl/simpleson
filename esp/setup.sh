@@ -1,5 +1,4 @@
-#!/bin/bash 
-alias python=python3.10
+#!/usr/bin/env python3.10
 # Check the current version of python
 python --version
 # ESP idf dependencies
