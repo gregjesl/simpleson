@@ -50,3 +50,7 @@ build/
 
 # Doxygen folders
 docs/
+
+# Espress-If
+esp/esp-idf
+sdkconfig
