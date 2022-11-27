@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.10
+#!/usr/local/bin/python3.10
 # Check the current version of python
 python --version
 # ESP idf dependencies
