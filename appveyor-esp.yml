@@ -13,8 +13,7 @@ install:
   - sh: sudo ./esp/setup.sh
 
 build_script:
+  - cd ~/esp-idf
+  - . ./export.sh
+  - cd ~
   - idf.py build
-
-test_script:
-  - ps: cd _builds
-  - ctest -VV -C %config%
