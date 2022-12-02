@@ -10,10 +10,17 @@ configuration:
 - Release
 
 install:
-  - sh: sudo ./esp/setup.sh
+  - wget https://www.python.org/ftp/python/3.7.15/Python-3.7.15.tgz
+  - tar -xvf Python-3.7.15.tgz
+  - cd Python-3.7.15
+  - sudo ./configure
+  - sudo make
+  - sudo make install
+  - cd esp
+  - sudo ./setup.sh
 
 build_script:
-  - cd ~/esp-idf
+  - cd esp/esp-idf
   - . ./export.sh
-  - cd ~
+  - cd ../../
   - idf.py build
