@@ -19,7 +19,7 @@ install:
   - cd ~
   - sudo apt-get install -y git wget flex bison gperf python3 python3-venv ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
   - git clone https://github.com/Kitware/CMake.git > /dev/null
-  - cd Cmake
+  - cd CMake
   - sudo ./bootstrap && make && sudo make install
   - cd ~
   - git clone --recursive https://github.com/espressif/esp-idf.git > /dev/null
