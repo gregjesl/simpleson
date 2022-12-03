@@ -8,8 +8,7 @@ if (ESP_PLATFORM)
 
     include($ENV{IDF_PATH}/tools/cmake/project.cmake)
     project(simpleson_esp32)
-    set(EXTRA_COMPONENT_DIRS "esp")
-    idf_build_set_property(COMPILE_OPTIONS "-Wimplicit-fallthrough" APPEND)
+    idf_build_set_property(COMPILE_OPTIONS "-Wimplicit-fallthrough=2" APPEND)
 
 else()
 
