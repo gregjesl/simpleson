@@ -236,6 +236,7 @@ json::reader::push_result json::reader::push_string(const char next)
     case STRING_OPENING_QUOTE:
         assert(this->length() == 1);
         this->set_state(STRING_OPEN);
+        // Fall through deliberate
     case STRING_OPEN:
         assert(this->length() > 0);
         switch (next)
@@ -352,6 +353,8 @@ json::reader::push_result json::reader::push_array(const char next)
                 return REJECTED;
             }
         }
+        // This point should not be reached
+        break;
     case ARRAY_AWAITING_NEXT_LINE:
         if(std::isspace(next)) return WHITESPACE;
         goto begin_reading_value;
@@ -392,7 +395,7 @@ json::reader::push_result json::reader::push_object(const char next)
         #endif
         this->sub_reader->push(next)
         #if DEBUG
-        == ACCEPTED;
+        == ACCEPTED);
         #else
         ;
         #endif
@@ -429,6 +432,8 @@ json::reader::push_result json::reader::push_object(const char next)
                 return REJECTED;
             }
         }
+        // This point should never be reached
+        break;
     case OBJECT_CLOSED:
         return REJECTED;
     }
@@ -604,6 +609,7 @@ json::reader::push_result json::reader::push_null(const char next)
             this->push_back(next);
             return ACCEPTED;
         }
+        return REJECTED;
     case 1:
         if(next == 'u') {
             this->push_back(next);
@@ -739,6 +745,7 @@ std::string json::parsing::decode_string(const char *input)
             case 'u':
                 // #todo Unicode support
                 index += 4;
+                break;
             default:
                 throw json::parsing_error("Expected control character");
             }
