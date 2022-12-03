@@ -10,22 +10,19 @@ configuration:
 - Release
 
 install:
-  - echo "Downloading Python 3.7.15"
   - wget https://www.python.org/ftp/python/3.7.15/Python-3.7.15.tgz
   - tar -xvf Python-3.7.15.tgz > /dev/null
   - cd Python-3.7.15
-  - echo "Configuring Python 3.7.15"
   - sudo ./configure > /dev/null
-  - echo "Building Python 3.7.15"
   - sudo make > /dev/null
-  - echo "Installing Python 3.7.15"
   - sudo make install > /dev/null
   - cd ~
-  - echo "Installing esp-idf dependencies"
-  - sudo apt-get install -y git wget flex bison gperf python3 python3-venv cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
-  - echo "Cloning esp-idf"
+  - sudo apt-get install -y git wget flex bison gperf python3 python3-venv ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
+  - git clone https://github.com/Kitware/CMake.git > /dev/null
+  - cd Cmake
+  - sudo ./bootstrap && make && sudo make install
+  - cd ~
   - git clone --recursive https://github.com/espressif/esp-idf.git > /dev/null
-  - echo "Installing esp-idf"
   - cd esp-idf
   - sudo ./install.sh esp32 > /dev/null
 
