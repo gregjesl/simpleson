@@ -28,5 +28,5 @@ install:
 
 build_script:
   - . ~/esp-idf/export.sh
-  - cd %APPVEYOR_BUILD_FOLDER%
+  - cd /home/appveyor/projects/simpleson-l4m5a
   - idf.py build
