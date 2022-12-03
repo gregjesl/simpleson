@@ -527,6 +527,10 @@ json::reader::push_result json::reader::push_number(const char next)
 
 json::reader::push_result json::reader::push_boolean(const char next)
 {
+    const char *str_true = "true";
+    const char *str_false = "false";
+    const char *str = NULL;
+
     if(this->length() == 0) {
         switch (next)
         {
@@ -535,69 +539,30 @@ json::reader::push_result json::reader::push_boolean(const char next)
             this->push_back(next);
             return ACCEPTED;
         default:
-            // Fall through
-            break;
-        }
-    } else if(this->at(0) == 't') {
-        switch (this->length())
-        {
-        case 1:
-            if(next == 'r') {
-                this->push_back(next);
-                return ACCEPTED;
-            }
             return REJECTED;
-        case 2:
-            if(next == 'u') {
-                this->push_back(next);
-                return ACCEPTED;
-            }
-            return REJECTED;
-        case 3:
-            if(next == 'e') {
-                this->push_back(next);
-                return ACCEPTED;
-            }
-            // Fall through
-        case 4:
-            return REJECTED;
-        default:
-            break; // Fall through
-        }
-    } else if(this->at(0) == 'f') {
-        switch (this->length())
-        {
-        case 1:
-            if(next == 'a') {
-                this->push_back(next);
-                return ACCEPTED;
-            }
-            return REJECTED;
-        case 2:
-            if(next == 'l') {
-                this->push_back(next);
-                return ACCEPTED;
-            }
-            return REJECTED;
-        case 3:
-            if(next == 's') {
-                this->push_back(next);
-                return ACCEPTED;
-            }
-            return REJECTED;
-        case 4:
-            if(next == 'e') {
-                this->push_back(next);
-                return ACCEPTED;
-            }
-            // Fall through
-        case 5:
-            return REJECTED;
-        default:
-            break; // Fall through
         }
     }
-    throw json::parsing_error("Unexpected state");
+
+    // Determine which string to use
+    switch (this->at(0))
+    {
+    case 't':
+        str = str_true;
+        break;
+    case 'f':
+        str = str_false;
+        break;
+    default:
+        throw json::parsing_error("Unexpected state");
+    }
+    assert(str == str_true || str == str_false);
+
+    // Push the value
+    if(this->length() < strlen(str) && str[this->length()] == next) {
+        this->push_back(next);
+        return ACCEPTED;
+    }
+    return REJECTED;
 }
 
 json::reader::push_result json::reader::push_null(const char next)
