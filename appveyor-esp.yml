@@ -28,4 +28,5 @@ install:
 
 build_script:
   - . ~/esp-idf/export.sh
+  - cd /home/appveyor/projects/simpleson
   - idf.py build
