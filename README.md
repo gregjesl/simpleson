@@ -1,6 +1,6 @@
-Linux / Windows / macOS | ESP
-------------------------|----
-[![Build status](https://ci.appveyor.com/api/projects/status/h9avws048watkvnr?svg=true)](https://ci.appveyor.com/project/gregjesl/simpleson) | [![Build status](https://ci.appveyor.com/api/projects/status/b8deqd4o1ilb2o3b?svg=true)](https://ci.appveyor.com/project/gregjesl/simpleson-esp)
+| Linux / Windows / macOS | ESP |
+| :---------------------: | :-: |
+| [![Build status](https://ci.appveyor.com/api/projects/status/h9avws048watkvnr?svg=true)](https://ci.appveyor.com/project/gregjesl/simpleson) | [![Build status](https://ci.appveyor.com/api/projects/status/b8deqd4o1ilb2o3b?svg=true)](https://ci.appveyor.com/project/gregjesl/simpleson-esp) | 
 
 # simpleson
 Lightweight C++ JSON parser &amp; serializer that is C++98 compatible with no dependencies
