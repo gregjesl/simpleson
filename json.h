@@ -296,14 +296,6 @@ namespace json
 		 */
 		const char* tlws(const char *start);
 
-		/*! \brief Reads a set of digits from a string
-		 * 
-		 * \details This function will take an input string and read the digits at the front of the string until a character other than a digit (0-9) is encountered. 
-		 * @param input A string that starts with a set of digits (0-9)
-		 * @return A string containing the digits
-		 */
-		std::string read_digits(const char *input);
-
 		/*! \brief Decodes a string in JSON format
 		 *
 		 * \details The quotation mark ("), reverse solidus (\), solidus (/), backspace (b), formfeed (f), linefeed (n), carriage return (r), horizontal tab (t), and Unicode character will be unescaped
