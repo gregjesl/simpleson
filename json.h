@@ -53,6 +53,9 @@ namespace json
 		inline virtual ~parsing_error() throw() { }
 	};
 
+	/*\brief Alias for a list of keys */
+	typedef std::vector<std::string> key_list_t;
+
 	/* \brief Namespace for handling of JSON data types */
 	namespace jtype
 	{
@@ -542,6 +545,12 @@ namespace json
 			for (size_t i = 0; i < this->size(); i++) if (this->data.at(i).first == key) return true;
 			return false;
 		}
+
+		/*! \brief Returns a list of the object's keys
+		 *
+		 * @return A list of keys contained in the object. If the object is actionally an array, an empty list will be returned
+		 */
+		key_list_t list_keys() const;
 
 		/*! \brief Sets the value assocaited with the key
 		 *

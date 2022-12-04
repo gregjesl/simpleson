@@ -66,5 +66,14 @@
             exit(1);                                                           \
         }                                                                      \
     }
+#define TEST_CONTAINS(haystack, needle)                                        \
+    {                                                                          \
+        size_t __i;                                                            \
+        for(__i = 0; __i < haystack.size(); __i++)                             \
+        {                                                                      \
+            if(haystack.at(__i) == needle) break;                              \
+        }                                                                      \
+        TEST_NOT_EQUAL(__i, haystack.size());                                  \
+    }
 
 #endif

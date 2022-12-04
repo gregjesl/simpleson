@@ -17,6 +17,20 @@ int main(void)
 		"}";
 
 	json::jobject result = json::jobject::parse(input);
+
+	// Test key list
+	json::key_list_t keys = result.list_keys();
+	TEST_EQUAL(keys.size(), 8);
+	TEST_CONTAINS(keys, "number");
+	TEST_CONTAINS(keys, "string");
+	TEST_CONTAINS(keys, "array");
+	TEST_CONTAINS(keys, "boolean");
+	TEST_CONTAINS(keys, "isnull");
+	TEST_CONTAINS(keys, "objarray");
+	TEST_CONTAINS(keys, "strarray");
+	TEST_CONTAINS(keys, "emptyarray");
+
+	// Test individual entries
 	TEST_FALSE(result.is_array());
 	TEST_STRING_EQUAL(result.get("number").c_str(), "123.456");
 	TEST_STRING_EQUAL(result.get("string").c_str(), "\"hello \\\" world\"");

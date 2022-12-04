@@ -913,6 +913,21 @@ json::jobject json::jobject::parse(const char *input)
     return result;
 }
 
+json::key_list_t json::jobject::list_keys() const
+{
+    // Initialize the result
+    key_list_t result;
+
+    // Return an empty list if the object is an array
+    if(this->is_array()) return result;
+
+    for(size_t i = 0; i < this->data.size(); i++)
+    {
+        result.push_back(this->data.at(i).first);
+    }
+    return result;
+}
+
 void json::jobject::set(const std::string &key, const std::string &value)
 {
     if(this->array_flag) throw json::invalid_key(key);
