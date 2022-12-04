@@ -42,11 +42,13 @@ int main(void)
 	TEST_TRUE(result.has_key("number"));
 	TEST_FALSE(result.has_key("nokey"));
 	TEST_STRING_EQUAL(result["objarray"].array(0).get("key").as_string().c_str(), "value");
-	std::vector<std::string> strarray = result["strarray"];
+	json::jobject strarray = result["strarray"];
+	TEST_TRUE(strarray.is_array());
 	TEST_EQUAL(strarray.size(), 2);
-	TEST_STRING_EQUAL(strarray[0].c_str(), "hello");
-	TEST_STRING_EQUAL(strarray[1].c_str(), "world");
-	std::vector<std::string> emptyarray = result["emptyarray"];
+	TEST_STRING_EQUAL(strarray.array(0).as_string().c_str(), "hello");
+	TEST_STRING_EQUAL(strarray.array(1).as_string().c_str(), "world");
+	json::jobject emptyarray = result["emptyarray"];
+	TEST_TRUE(emptyarray.is_array());
 	TEST_EQUAL(emptyarray.size(), 0);
 
     printf("Output\n%s\n", result.pretty().c_str());

@@ -26,11 +26,11 @@ int main(void)
     assert(example["array"].array(1) == obj2);
 
     // Read back the entire array
-    std::vector<json::jobject> readbackarray = example["array"];
+    json::jobject readbackarray = example["array"];
 
     // Access each item
-    json::jobject readback1 = readbackarray[0];
+    json::jobject readback1 = readbackarray.array(0);
     assert(readback1 == obj1);
-    json::jobject readback2 = readbackarray[1];
+    json::jobject readback2 = readbackarray.array(1);
     assert(readback2 == obj2);
 }

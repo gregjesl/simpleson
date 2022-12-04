@@ -363,6 +363,32 @@ namespace json
 			return result;
 		}
 
+		template<typename T>
+		std::string get_integer_string(const T &number)
+		{
+			T remainder = number;
+			std::string buffer;
+			while(remainder != 0)
+			{
+				const T digit = remainder % 10;
+				buffer.push_back(digit + (T)'0');
+				remainder /= 10;
+			}
+			if(number < (T)0) {
+				buffer.push_back('-');
+			}
+			// std::reverse() could also be used, but that would require including <algorithm>
+			// For portability std::reverse() will not be used
+			std::string result;
+			const size_t buf_len = buffer.size();
+			for(size_t i = 0; i < buf_len; i++)
+			{
+				result.push_back(buffer.back());
+				buffer.pop_back();
+			}
+			return result;
+		}
+
 		/*! \brief Converts a number to a string
 		 * 
 		 * @tparam The C data type of the number to be converted
@@ -622,24 +648,6 @@ namespace json
 				return json::parsing::get_number<T>(this->ref().c_str(), format);
 			}
 
-			/*! \brief Converts a serialized array of numbers to a vector of numbers
-			 *
-			 * @tparam The C data type used to represent the values in the array
-			 * @param format The format used to convert the serialized values in the array to numeric values
-			 * @return The value as a vector of numbers
-			 */
-			template<typename T>
-			inline std::vector<T> get_number_array(const char* format) const
-			{
-				std::vector<std::string> numbers = json::parsing::parse_array(this->ref().c_str());
-				std::vector<T> result;
-				for (size_t i = 0; i < numbers.size(); i++)
-				{
-					result.push_back(json::parsing::get_number<T>(numbers[i].c_str(), format));
-				}
-				return result;
-			}
-
 		public:
 			/*! \brief Returns a string representation of the value */
 			inline std::string as_string() const
@@ -661,20 +669,29 @@ namespace json
 			/*! \brief Comparison operator */
 			bool operator!= (const std::string other) const { return !(((std::string)(*this)) == other); }
 
-			/*! \brief Casts the value as an integer */
-			operator int() const;
+			/*! \brief Casts the value as an 1-byte integer */
+			operator int8_t() const;
 
-			/*! \brief Casts the value as an unsigned integer */
-			operator unsigned int() const;
+			/*! \brief Casts the value as an 2-byte integer */
+			operator int16_t() const;
 
-			/*! \brief Casts teh value as a long integer */
-			operator long() const;
+			/*! \brief Casts the value as an 4-byte integer */
+			operator int32_t() const;
 
-			/*! \brief Casts the value as an unsigned long integer */
-			operator unsigned long() const;
+			/*! \brief Casts the value as an 8-byte integer */
+			operator int64_t() const;
 
-			/*! \brief Casts teh value as a char */
-			operator char() const;
+			/*! \brief Casts the value as an 1-byte unsigned integer */
+			operator uint8_t() const;
+
+			/*! \brief Casts the value as an 2-byte unsigned integer */
+			operator uint16_t() const;
+
+			/*! \brief Casts the value as an 4-byte unsigned integer */
+			operator uint32_t() const;
+
+			/*! \brief Casts the value as an 8-byte unsigned integer */
+			operator uint64_t() const;
 
 			/*! \brief Casts the value as a floating point numer */
 			operator float() const;
@@ -697,49 +714,13 @@ namespace json
 				return this->as_object();
 			}
 
-			/*! \brief Casts an array of integers */
-			operator std::vector<int>() const;
-
-			/*! \brief Casts an array of unsigned integers */
-			operator std::vector<unsigned int>() const;
-
-			/*! \brief Casts an array of long integers */
-			operator std::vector<long>() const;
-
-			/*! \brief Casts an array of unsigned long integers */
-			operator std::vector<unsigned long>() const;
-
-			/*! \brief Casts an array of chars */
-			operator std::vector<char>() const;
-
-			/*! \brief Casts an array of floating-point numbers */
-			operator std::vector<float>() const;
-
-			/*! \brief Casts an array of double floating-point numbers */
-			operator std::vector<double>() const;
-
-			/*! \brief Casts an array of JSON objects */
-			operator std::vector<json::jobject>() const
-			{
-				const std::vector<std::string> objs = json::parsing::parse_array(this->ref().c_str());
-				std::vector<json::jobject> results;
-				for (size_t i = 0; i < objs.size(); i++) {
-					results.push_back(json::jobject::parse(objs[i].c_str()));
-				}
-				return results;
-			}
-
-			/*! \brief Casts an array of strings */
-			operator std::vector<std::string>() const { return json::parsing::parse_array(this->ref().c_str()); }
-
 			/*! \brief Casts an array
-			 *
+			 * 
 			 * @tparam T The type of array to be cast to
 			 */
-			template<typename T>
-			inline std::vector<T> as_array() const
+			inline json::jobject as_array() const
 			{
-				return (std::vector<T>)(*this);
+				return this->as_object();
 			}
 
 			/*! \brief Returns true if the value is a string */
@@ -898,6 +879,18 @@ namespace json
 			jobject &sink;
 
 		protected:
+			/*! \brief Sets an integer number value in the parent object 
+			 * 
+			 * @tparam T The data type to be translated into JSON
+			 * @param value The value to be translated to JSON
+			 * @param format The format to use when translating the number
+			 */
+			template<typename T>
+			inline void set_integer(const T value)
+			{
+				this->sink.set(key, json::parsing::get_integer_string(value));
+			}
+
 			/*! \brief Sets a number value in the parent object 
 			 * 
 			 * @tparam T The data type to be translated into JSON
@@ -957,19 +950,28 @@ namespace json
 			}
 
 			/*! \brief Assigns an integer */
-			void operator=(const int input) { this->set_number(input, "%i"); }
+			void operator=(const int16_t input) { this->set_integer(input); }
 
 			/*! \brief Assigns an unsigned integer */
-			void operator=(const unsigned int input) { this->set_number(input, "%u"); }
+			void operator=(const uint16_t input) { this->set_integer(input); }
 
 			/*! \brief Assigns a long integer */
-			void operator=(const long input) { this->set_number(input, "%li"); }
+			void operator=(const int32_t input) { this->set_integer(input); }
 
 			/*! \brief Assigns a long unsigned integer */
-			void operator=(const unsigned long input) { this->set_number(input, "%lu"); }
+			void operator=(const uint32_t input) { this->set_integer(input); }
+
+			/*! \brief Assigns a ver long integer */
+			void operator=(const int64_t input) { this->set_integer(input); }
+
+			/*! \brief Assigns a very long unsigned integer */
+			void operator=(const uint64_t input) { this->set_integer(input); }
 
 			/*! \brief Assigns an character */
-			void operator=(const char input) { this->set_number(input, "%c"); }
+			void operator=(const int8_t input) { this->set_integer(input); }
+
+			/*! \brief Assigns an character */
+			void operator=(const uint8_t input) { this->set_integer(input); }
 
 			/*! \brief Assigns an double floating-point integer  */
 			void operator=(const double input) { this->set_number(input, "%e"); }
@@ -1088,12 +1090,130 @@ namespace json
 			return this->operator std::string();
 		}
 
+		/*! \brief Casts the array to a vector */
+		inline std::vector<json::jobject> cast_object_array() const
+		{
+			std::vector<json::jobject> result;
+			for(size_t i = 0; i < this->data.size(); i++)
+			{
+				const json::jobject::const_value value(this->data.at(i).second);
+				result.push_back(value.as_object());
+			}
+			return result;
+		}
+
+		/*! \brief Casts the array to a vector */
+		template<typename T>
+		inline std::vector<T> cast_array() const
+		{
+			std::vector<T> result;
+			for(size_t i = 0; i < this->data.size(); i++)
+			{
+				const json::jobject::const_value value(this->data.at(i).second);
+				result.push_back((T)value);
+			}
+			return result;
+		}
+
 		/*! \brief Returns a pretty (multi-line indented) serialzed representation of the object or array
 		 * 
 		 * @param indent_level The number of indents (tabs) to start with
 		 * @return A "pretty" version of the serizlied object or array
 		 */
 		std::string pretty(unsigned int indent_level = 0) const;
+	};
+
+	class transcriber
+	{
+	private:
+		enum SUPPORTED_TYPES
+		{
+			INT8,
+			UINT8,
+			INT16,
+			UINT16,
+			INT32,
+			UINT32,
+			INT64,
+			UINT64,
+			FLOAT,
+			DOUBLE,
+			STRING,
+			OBJECT,
+			BOOLEAN
+		};
+
+		typedef struct json_registration_struct
+		{
+			void *location;
+			std::string key;
+			SUPPORTED_TYPES type;
+		} json_registration_t;
+
+		std::vector<json_registration_t> __json_registration;
+	public: 
+		/*! \brief Default constructor */
+		transcriber() { }
+
+		/*! \brief Copy Constructor */
+		transcriber(const transcriber &other)
+			: __json_registration(other.__json_registration)
+		{ }
+
+		/*! \brief Assignment operator */
+		inline virtual transcriber& operator= (const transcriber &other) { 
+			this->__json_registration = other.__json_registration;
+			return *this;
+		}
+
+		/*! \brief Default destructor */
+		virtual ~transcriber() { }
+
+		/*! \brief Clear assignments */
+		inline void clear_registration() { this->__json_registration.clear(); }
+
+		/*! \brief Returns the inner union of keys contained in the input and keys contained in existing registration */
+		key_list_t overlapping_keys(const key_list_t input) const;
+
+		inline key_list_t overlapping_keys(const json::jobject &input) { return this->overlapping_keys(input.list_keys()); }
+
+		/*! \brief Returns keys that are registered but were not included in the input */
+		key_list_t missing_keys(const key_list_t input) const;
+
+		inline key_list_t missing_keys(const json::jobject &input) { return this->missing_keys(input.list_keys()); }
+
+		inline void jregister(const std::string key, int8_t *value) { this->jregister(key, value, INT8); }
+		inline void jregister(const std::string key, uint8_t *value) { this->jregister(key, value, UINT8); }
+		inline void jregister(const std::string key, int16_t*value) { this->jregister(key, value, INT16); }
+		inline void jregister(const std::string key, uint16_t *value) { this->jregister(key, value, UINT16); }
+		inline void jregister(const std::string key, int32_t *value) { this->jregister(key, value, INT32); }
+		inline void jregister(const std::string key, uint32_t *value) { this->jregister(key, value, UINT32); }
+		inline void jregister(const std::string key, int64_t *value) { this->jregister(key, value, INT64); }
+		inline void jregister(const std::string key, uint64_t *value) { this->jregister(key, value, UINT64); }
+		inline void jregister(const std::string key, float *value) { this->jregister(key, value, FLOAT); }
+		inline void jregister(const std::string key, double *value) { this->jregister(key, value, DOUBLE); }
+		inline void jregister(const std::string key, std::string *value) { this->jregister(key, value, STRING); }
+		inline void jregister(const std::string key, json::jobject *value) { this->jregister(key, value, OBJECT); }
+		inline void jregister_boolean(const std::string key, bool *value) { this->jregister(key, value, BOOLEAN); }
+
+		json::jobject to_json() const;
+		inline std::string serialize() const { return this->to_json().as_string(); }
+
+		/*! \brief Copies value from the input to the assigned variables
+		 *
+		 * \returns The list of keys that were found in the input object
+		 */
+		key_list_t from_json(const json::jobject& input);
+		inline key_list_t from_json(const std::string input) { return this->from_json(json::jobject::parse(input)); }
+		inline key_list_t from_json(const char *input) { return this->from_json(json::jobject::parse(input)); }
+	protected:
+		void jregister(const std::string key, void *value, SUPPORTED_TYPES type);
+	};
+
+	class jconvertible : public transcriber
+	{
+	public:
+		virtual void define_serialization() = 0;
 	};
 }
 

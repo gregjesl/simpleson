@@ -43,11 +43,16 @@ int main(void)
 	TEST_TRUE(result.has_key("number"));
 	TEST_FALSE(result.has_key("nokey"));
 	TEST_STRING_EQUAL(result["objarray"].array(0).get("key").as_string().c_str(), "value");
-	std::vector<std::string> strarray = result["strarray"];
+	json::jobject strarray = result["strarray"];
+	TEST_TRUE(strarray.is_array());
 	TEST_EQUAL(strarray.size(), 2);
-	TEST_STRING_EQUAL(strarray[0].c_str(), "hello");
-	TEST_STRING_EQUAL(strarray[1].c_str(), "world");
-	std::vector<std::string> emptyarray = result["emptyarray"];
+	TEST_STRING_EQUAL(strarray.array(0).as_string().c_str(), "hello");
+	TEST_STRING_EQUAL(strarray.array(1).as_string().c_str(), "world");
+	std::vector<std::string> casted_string_array = strarray.cast_array<std::string>();
+	TEST_STRING_EQUAL(casted_string_array.at(0).c_str(), "hello");
+	TEST_STRING_EQUAL(casted_string_array.at(1).c_str(), "world");
+	json::jobject emptyarray = result["emptyarray"];
+	TEST_TRUE(emptyarray.is_array());
 	TEST_EQUAL(emptyarray.size(), 0);
 
 	// Assign some new values
@@ -65,7 +70,7 @@ int main(void)
 	test["array"] = std::vector<int>(test_array, test_array + 3);
 	std::string test_string_array[2] = { "hello", "world" };
 	test["strarray"] = std::vector<std::string>(test_string_array, test_string_array + 2);
-	test["emptyarray"] = std::vector<std::string>();
+	test["emptyarray"] = json::jobject(true);
 	test["boolean"].set_boolean(true);
 	test["null"].set_null();
 
@@ -110,8 +115,12 @@ int main(void)
 	TEST_FALSE(retest["string"].is_null());
 
 	// Array
-	std::vector<int> retest_array = retest["array"];
-	TEST_TRUE(retest_array == std::vector<int>(test_array, test_array + 3));
+	json::jobject retest_array = retest["array"];
+	std::vector<int> casted_int_array = retest_array.cast_array<int>();
+	for(size_t i = 0; i < 3; i++) {
+		TEST_EQUAL((int)retest_array.array(i), test_array[i]);
+		TEST_EQUAL(casted_int_array[i], test_array[i]);
+	}
 	TEST_FALSE(retest["array"].is_string());
 	TEST_FALSE(retest["array"].is_number());
 	TEST_TRUE(retest["array"].is_object());
@@ -129,13 +138,18 @@ int main(void)
 	TEST_FALSE(retest["subobj"].is_bool());
 	TEST_FALSE(retest["subobj"].is_null());
 
-	// Object array
-	TEST_TRUE(retest["objarray"].array(0).as_object() == subobj);
+	// String array
 	strarray = retest["strarray"];
 	TEST_EQUAL(strarray.size(), 2);
-	TEST_STRING_EQUAL(strarray[0].c_str(), "hello");
-	TEST_STRING_EQUAL(strarray[1].c_str(), "world");
-	std::vector<json::jobject> objarrayecho = test["objarray"];
+	TEST_STRING_EQUAL(strarray.array(0).as_string().c_str(), "hello");
+	TEST_STRING_EQUAL(strarray.array(1).as_string().c_str(), "world");
+	casted_string_array = strarray.cast_array<std::string>();
+	TEST_STRING_EQUAL(casted_string_array.at(0).c_str(), "hello");
+	TEST_STRING_EQUAL(casted_string_array.at(1).c_str(), "world");
+
+	// Object array
+	TEST_TRUE(retest["objarray"].array(0).as_object() == subobj);
+	json::jobject objarrayecho = test["objarray"];
 	TEST_EQUAL(objarrayecho.size(), 2);
 	TEST_FALSE(retest["objarray"].is_string());
 	TEST_FALSE(retest["objarray"].is_number());
@@ -143,6 +157,7 @@ int main(void)
 	TEST_TRUE(retest["objarray"].is_array());
 	TEST_FALSE(retest["objarray"].is_bool());
 	TEST_FALSE(retest["objarray"].is_null());
+	TEST_EQUAL(objarrayecho.cast_object_array().size(), 2)
 
 	// Empty array
 	emptyarray = retest["emptyarray"];

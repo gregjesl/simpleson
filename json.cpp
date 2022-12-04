@@ -827,21 +827,42 @@ std::vector<std::string> json::parsing::parse_array(const char *input)
     return result;
 }
 
-json::jobject::entry::operator int() const { return this->get_number<int>(INT_FORMAT); }
-json::jobject::entry::operator unsigned int() const { return this->get_number<unsigned int>(UINT_FORMAT); }
-json::jobject::entry::operator long() const { return this->get_number<long>(LONG_FORMAT); }
-json::jobject::entry::operator unsigned long() const { return this->get_number<unsigned long>(ULONG_FORMAT); }
-json::jobject::entry::operator char() const { return this->get_number<char>(CHAR_FORMAT); }
+template <typename T>
+T str_to_int(const char *input)
+{
+    const char *error = "Input was not a valid string representation of an integer";
+    T result = 0;
+    T multiplier = 1;
+    size_t i = strlen(input) - 1;
+    const size_t last = strlen(input);
+    for(size_t i = 0; i < last; i++)
+    {
+        const size_t reverse = last - i - 1;
+        if(!IS_DIGIT(input[reverse])) {
+            if(i == 0 && input[0] == '-') {
+                result *= (T)(-1);
+                break;
+            } else {
+                throw std::invalid_argument(error);
+            }
+        }
+        result += (input[reverse] - ((T)'0')) * multiplier;
+        multiplier *= 10;
+    }
+
+    return result;
+}
+
+json::jobject::entry::operator int8_t() const { return str_to_int<int8_t>(this->ref().c_str()); }
+json::jobject::entry::operator uint8_t() const { return str_to_int<uint8_t>(this->ref().c_str()); }
+json::jobject::entry::operator int16_t() const { return str_to_int<int16_t>(this->ref().c_str()); }
+json::jobject::entry::operator uint16_t() const { return str_to_int<uint16_t>(this->ref().c_str()); }
+json::jobject::entry::operator int32_t() const { return str_to_int<int32_t>(this->ref().c_str()); }
+json::jobject::entry::operator uint32_t() const { return str_to_int<uint32_t>(this->ref().c_str()); }
+json::jobject::entry::operator int64_t() const { return str_to_int<int64_t>(this->ref().c_str()); }
+json::jobject::entry::operator uint64_t() const { return str_to_int<uint64_t>(this->ref().c_str()); }
 json::jobject::entry::operator float() const { return this->get_number<float>(FLOAT_FORMAT); }
 json::jobject::entry::operator double() const { return this->get_number<double>(DOUBLE_FORMAT); }
-
-json::jobject::entry::operator std::vector<int>() const { return this->get_number_array<int>(INT_FORMAT); }
-json::jobject::entry::operator std::vector<unsigned int>() const { return this->get_number_array<unsigned int>(UINT_FORMAT); }
-json::jobject::entry::operator std::vector<long>() const { return this->get_number_array<long>(LONG_FORMAT); }
-json::jobject::entry::operator std::vector<unsigned long>() const { return this->get_number_array<unsigned long>(ULONG_FORMAT); }
-json::jobject::entry::operator std::vector<char>() const { return this->get_number_array<char>(CHAR_FORMAT); }
-json::jobject::entry::operator std::vector<float>() const { return this->get_number_array<float>(FLOAT_FORMAT); }
-json::jobject::entry::operator std::vector<double>() const { return this->get_number_array<double>(DOUBLE_FORMAT); }
 
 void json::jobject::proxy::set_array(const std::vector<std::string> &values, const bool wrap)
 {
@@ -1034,6 +1055,187 @@ std::string json::jobject::pretty(unsigned int indent_level) const
         result.erase(result.size() - 2, 1);
         for(unsigned int i = 0; i < indent_level; i++) result += "\t";
         result += "}";
+    }
+    return result;
+}
+
+json::key_list_t json::transcriber::overlapping_keys(const json::key_list_t input) const
+{
+    key_list_t result;
+    for(size_t i = 0; i < this->__json_registration.size(); i++)
+    {
+        for(size_t j = 0; j < input.size(); j++)
+        {
+            if(this->__json_registration.at(i).key == input.at(j)) {
+                result.push_back(input.at(j));
+                break;
+            }
+        }
+    }
+    return result;
+}
+
+json::key_list_t json::transcriber::missing_keys(const json::key_list_t input) const
+{
+    key_list_t result, overlap;
+    size_t i,j;
+    overlap = this->overlapping_keys(input);
+    for(i = 0; i < this->__json_registration.size(); i++) 
+    {
+        for(j = 0; j < overlap.size(); j++)
+        {
+            if(this->__json_registration.at(i).key == overlap.at(j)) break;
+        }
+
+        // Test for key found
+        if(j == overlap.size())
+        {
+            // Key not found
+            result.push_back(this->__json_registration.at(i).key);
+        }
+    }
+    return result;
+}
+
+void json::transcriber::jregister(const std::string key, void *value, SUPPORTED_TYPES type)
+{   
+    for(size_t i = 0; i < this->__json_registration.size(); i++) {
+        if(this->__json_registration.at(i).key == key) {
+            this->__json_registration[i].location = value;
+            this->__json_registration[i].type = type;
+            return;
+        }
+    }
+
+    // No key found
+    json_registration_t entry;
+    entry.key = key;
+    entry.location = value;
+    entry.type = type;
+    this->__json_registration.push_back(entry);
+}
+
+json::jobject json::transcriber::to_json() const
+{
+    json::jobject result;
+    for(size_t i = 0; i < this->__json_registration.size(); i++)
+    {
+        // Get the proxy
+        json::jobject::proxy prox = result[this->__json_registration.at(i).key];
+
+        // Get the pointer
+        void * value = this->__json_registration.at(i).location;
+
+        // Check for null value
+        if(value == NULL) {
+            prox.set_null();
+            continue;
+        }
+
+        switch (this->__json_registration.at(i).type)
+        {
+        case INT8:
+            prox = *(int8_t*)value;
+            break;
+        case UINT8:
+            prox = *(uint8_t*)value;
+            break;
+        case INT16:
+            prox = *(int16_t*)value;
+            break;
+        case UINT16:
+            prox = *(uint16_t*)value;
+            break;
+        case INT32:
+            prox = *(int32_t*)value;
+            break;
+        case UINT32:
+            prox = *(uint32_t*)value;
+            break;
+        case INT64:
+            prox = *(int64_t*)value;
+            break;
+        case UINT64:
+            prox = *(uint64_t*)value;
+            break;
+        case FLOAT:
+            prox = *(float*)value;
+            break;
+        case DOUBLE:
+            prox = *(double*)value;
+            break;
+        case STRING:
+            prox = *(std::string*)value;
+            break;
+        case OBJECT:
+            prox = *(json::jobject*)value;
+            break;
+        case BOOLEAN:
+            prox = *(bool*)value;
+            break;
+        }
+    }
+    return result;
+}
+
+json::key_list_t json::transcriber::from_json(const json::jobject &input)
+{
+    json::key_list_t result;
+    for(size_t i = 0; i < this->__json_registration.size(); i++)
+    {
+        const json_registration_t entry = this->__json_registration.at(i);
+        if(entry.location == NULL || !input.has_key(entry.key)) {
+            continue;
+        }
+
+        assert(input.has_key(entry.key));
+        if(input[entry.key].is_null()) {
+            continue;
+        }
+
+        switch (entry.type)
+        {
+        case INT8:
+            *(int8_t*)entry.location = input[entry.key];
+            break;
+        case UINT8:
+            *(uint8_t*)entry.location = input[entry.key];
+            break;
+        case INT16:
+            *(int16_t*)entry.location = input[entry.key];
+            break;
+        case UINT16:
+            *(uint16_t*)entry.location = input[entry.key];
+            break;
+        case INT32:
+            *(int32_t*)entry.location = input[entry.key];
+            break;
+        case UINT32:
+            *(uint32_t*)entry.location = input[entry.key];
+            break;
+        case INT64:
+            *(int64_t*)entry.location = input[entry.key];
+            break;
+        case UINT64:
+            *(uint64_t*)entry.location = input[entry.key];
+            break;
+        case FLOAT:
+            *(float*)entry.location = input[entry.key];
+            break;
+        case DOUBLE:
+            *(double*)entry.location = input[entry.key];
+            break;
+        case STRING:
+            *(std::string*)entry.location = input[entry.key].as_string();
+            break;
+        case OBJECT:
+            *(json::jobject*)entry.location = input[entry.key].as_object();
+            break;
+        case BOOLEAN:
+            *(bool*)entry.location = input[entry.key].is_true();
+            break;
+        }
+        result.push_back(entry.key);
     }
     return result;
 }
