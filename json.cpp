@@ -1059,7 +1059,7 @@ std::string json::jobject::pretty(unsigned int indent_level) const
     return result;
 }
 
-json::key_list_t json::transcriber::overlapping_keys(const json::key_list_t input) const
+json::key_list_t json::jtranscriber::overlapping_keys(const json::key_list_t input) const
 {
     key_list_t result;
     for(size_t i = 0; i < this->__json_registration.size(); i++)
@@ -1075,7 +1075,7 @@ json::key_list_t json::transcriber::overlapping_keys(const json::key_list_t inpu
     return result;
 }
 
-json::key_list_t json::transcriber::missing_keys(const json::key_list_t input) const
+json::key_list_t json::jtranscriber::missing_keys(const json::key_list_t input) const
 {
     key_list_t result, overlap;
     size_t i,j;
@@ -1097,7 +1097,7 @@ json::key_list_t json::transcriber::missing_keys(const json::key_list_t input) c
     return result;
 }
 
-void json::transcriber::jregister(const std::string key, void *value, SUPPORTED_TYPES type)
+void json::jtranscriber::jregister(const std::string key, void *value, SUPPORTED_TYPES type)
 {   
     for(size_t i = 0; i < this->__json_registration.size(); i++) {
         if(this->__json_registration.at(i).key == key) {
@@ -1115,7 +1115,7 @@ void json::transcriber::jregister(const std::string key, void *value, SUPPORTED_
     this->__json_registration.push_back(entry);
 }
 
-json::jobject json::transcriber::to_json() const
+json::jobject json::jtranscriber::to_json() const
 {
     json::jobject result;
     for(size_t i = 0; i < this->__json_registration.size(); i++)
@@ -1178,7 +1178,7 @@ json::jobject json::transcriber::to_json() const
     return result;
 }
 
-json::key_list_t json::transcriber::from_json(const json::jobject &input)
+json::key_list_t json::jtranscriber::from_json(const json::jobject &input)
 {
     json::key_list_t result;
     for(size_t i = 0; i < this->__json_registration.size(); i++)

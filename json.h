@@ -12,6 +12,7 @@
 #include <utility>
 #include <stdexcept>
 #include <cctype>
+#include <inttypes.h>
 
 /*! \brief Base namespace for simpleson */
 namespace json
@@ -1123,7 +1124,7 @@ namespace json
 		std::string pretty(unsigned int indent_level = 0) const;
 	};
 
-	class transcriber
+	class jtranscriber
 	{
 	private:
 		enum SUPPORTED_TYPES
@@ -1153,21 +1154,21 @@ namespace json
 		std::vector<json_registration_t> __json_registration;
 	public: 
 		/*! \brief Default constructor */
-		transcriber() { }
+		jtranscriber() { }
 
 		/*! \brief Copy Constructor */
-		transcriber(const transcriber &other)
+		jtranscriber(const jtranscriber &other)
 			: __json_registration(other.__json_registration)
 		{ }
 
 		/*! \brief Assignment operator */
-		inline virtual transcriber& operator= (const transcriber &other) { 
+		inline virtual jtranscriber& operator= (const jtranscriber &other) { 
 			this->__json_registration = other.__json_registration;
 			return *this;
 		}
 
 		/*! \brief Default destructor */
-		virtual ~transcriber() { }
+		virtual ~jtranscriber() { }
 
 		/*! \brief Clear assignments */
 		inline void clear_registration() { this->__json_registration.clear(); }
@@ -1208,12 +1209,6 @@ namespace json
 		inline key_list_t from_json(const char *input) { return this->from_json(json::jobject::parse(input)); }
 	protected:
 		void jregister(const std::string key, void *value, SUPPORTED_TYPES type);
-	};
-
-	class jconvertible : public transcriber
-	{
-	public:
-		virtual void define_serialization() = 0;
 	};
 }
 
