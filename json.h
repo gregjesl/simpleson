@@ -1210,6 +1210,29 @@ namespace json
 	protected:
 		void jregister(const std::string key, void *value, SUPPORTED_TYPES type);
 	};
+
+	class jconvertible : public jtranscriber
+	{
+	public:
+		inline jconvertible() 
+			: jtranscriber()
+		{
+			this->define_serialization();
+		}
+
+		inline jconvertible(const jtranscriber &other)
+		{
+			this->define_serialization();
+		}
+
+		/*! \brief Assignment operator */
+		inline virtual jtranscriber& operator= (const jtranscriber &other) { 
+			// Serialization definition will not change
+			return *this;
+		}
+
+		virtual void define_serialization() = 0;
+	};
 }
 
 #endif // !JSON_H
