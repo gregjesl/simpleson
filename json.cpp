@@ -20,13 +20,6 @@
  */
 #define SKIP_WHITE_SPACE(str) { const char *next = json::parsing::tlws(str); str = next; }
 
-/*! \brief Determines if the end character of serialized JSON is encountered
- * 
- * @param obj The JSON object or array that is being written to
- * @param index The pointer to the character to be checked
- */
-#define END_CHARACTER_ENCOUNTERED(obj, index) (obj.is_array() ? *index == ']' : *index == '}')
-
 /*! \brief Determines if the supplied character is a digit
  *
  * @param input The character to be tested
@@ -931,40 +924,27 @@ json::jobject json::jobject::parse(const char *input)
 {
     const char error[] = "Input is not a valid object";
     const char *index = json::parsing::tlws(input);
+    if(*index != '{') throw std::invalid_argument(__FUNCTION__);
+    index++;
     json::jobject result;
     json::reader stream;
-    switch (*index)
-    {
-    case '{':
-        // Result is already an object
-        break;
-    case '[':
-        result = json::jobject(true);
-        break;
-    default:
-        throw json::parsing_error(error);
-        break;
-    }
-    index++;
     SKIP_WHITE_SPACE(index);
     if (EMPTY_STRING(index)) throw json::parsing_error(error);
 
-    while (!EMPTY_STRING(index) && !END_CHARACTER_ENCOUNTERED(result, index))
+    while (!EMPTY_STRING(index) && *index != '}')
     {
         // Get key
         kvp entry;
 
-        if(!result.is_array()) {
-            json::parsing::parse_results key = json::parsing::parse(index);
-            if (key.type != json::jtype::jstring || key.value == "") throw json::parsing_error(error);
-            entry.first = json::parsing::decode_string(key.value.c_str());
-            index = key.remainder;
+        json::parsing::parse_results key = json::parsing::parse(index);
+        if (key.type != json::jtype::jstring || key.value == "") throw json::parsing_error(error);
+        entry.first = json::parsing::decode_string(key.value.c_str());
+        index = key.remainder;
 
-            // Get value
-            SKIP_WHITE_SPACE(index);
-            if (*index != ':') throw json::parsing_error(error);
-            index++;
-        }
+        // Get value
+        SKIP_WHITE_SPACE(index);
+        if (*index != ':') throw json::parsing_error(error);
+        index++;
 
         SKIP_WHITE_SPACE(index);
         json::parsing::parse_results value = json::parsing::parse(index);
@@ -974,12 +954,12 @@ json::jobject json::jobject::parse(const char *input)
 
         // Clean up
         SKIP_WHITE_SPACE(index);
-        if (*index != ',' && !END_CHARACTER_ENCOUNTERED(result, index)) throw json::parsing_error(error);
+        if (*index != ',' && *index != '}') throw json::parsing_error(error);
         if (*index == ',') index++;
         result += entry;
 
     }
-    if (EMPTY_STRING(index) || !END_CHARACTER_ENCOUNTERED(result, index)) throw json::parsing_error(error);
+    if (EMPTY_STRING(index) || *index != '}') throw json::parsing_error(error);
     index++;
     return result;
 }
@@ -988,9 +968,6 @@ json::key_list_t json::jobject::list_keys() const
 {
     // Initialize the result
     key_list_t result;
-
-    // Return an empty list if the object is an array
-    if(this->is_array()) return result;
 
     for(size_t i = 0; i < this->data.size(); i++)
     {
@@ -1001,7 +978,6 @@ json::key_list_t json::jobject::list_keys() const
 
 void json::jobject::set(const std::string &key, const std::string &value)
 {
-    if(this->array_flag) throw json::invalid_key(key);
     for (size_t i = 0; i < this->size(); i++)
     {
         if (this->data.at(i).first == key)
@@ -1029,83 +1005,47 @@ void json::jobject::remove(const std::string &key)
 
 json::jobject::operator std::string() const
 {
-    if (is_array()) {
-        if (this->size() == 0) return "[]";
-        std::string result = "[";
-        for (size_t i = 0; i < this->size(); i++)
-        {
-            result += this->data.at(i).second + ",";
-        }
-        result.erase(result.size() - 1, 1);
-        result += "]";
-        return result;
-    } else {
-        if (this->size() == 0) return "{}";
-        std::string result = "{";
-        for (size_t i = 0; i < this->size(); i++)
-        {
-            result += json::parsing::encode_string(this->data.at(i).first.c_str()) + ":" + this->data.at(i).second + ",";
-        }
-        result.erase(result.size() - 1, 1);
-        result += "}";
-        return result;
+    if (this->size() == 0) return "{}";
+    std::string result = "{";
+    for (size_t i = 0; i < this->size(); i++)
+    {
+        result += json::parsing::encode_string(this->data.at(i).first.c_str()) + ":" + this->data.at(i).second + ",";
     }
+    result.erase(result.size() - 1, 1);
+    result += "}";
+    return result;
 }
 
 std::string json::jobject::pretty(unsigned int indent_level) const
 {
     std::string result = "";
     for(unsigned int i = 0; i < indent_level; i++) result += "\t";
-    if (is_array()) {
-        if(this->size() == 0) {
-            result += "[]";
-            return result;
-        }
-        result += "[\n";
-        for (size_t i = 0; i < this->size(); i++)
-        {
-            switch(json::jtype::peek(*this->data.at(i).second.c_str())) {
-                case json::jtype::jarray:
-                case json::jtype::jobject:
-                    result += json::jobject::parse(this->data.at(i).second).pretty(indent_level + 1);
-                    break;
-                default:
-                    for(unsigned int j = 0; j < indent_level + 1; j++) result += "\t";
-                    result += this->data.at(i).second;
-                    break;
-            }
-
-            result += ",\n";
-        }
-        result.erase(result.size() - 2, 1);
-        for(unsigned int i = 0; i < indent_level; i++) result += "\t";
-        result += "]";
-    } else {
-        if(this->size() == 0) {
-            result += "{}";
-            return result;
-        }
-        result += "{\n";
-        for (size_t i = 0; i < this->size(); i++)
-        {
-            for(unsigned int j = 0; j < indent_level + 1; j++) result += "\t";
-            result += "\"" + this->data.at(i).first + "\": ";
-            switch(json::jtype::peek(*this->data.at(i).second.c_str())) {
-                case json::jtype::jarray:
-                case json::jtype::jobject:
-                    result += std::string(json::parsing::tlws(json::jobject::parse(this->data.at(i).second).pretty(indent_level + 1).c_str()));
-                    break;
-                default:
-                    result += this->data.at(i).second;
-                    break;
-            }
-
-            result += ",\n";
-        }
-        result.erase(result.size() - 2, 1);
-        for(unsigned int i = 0; i < indent_level; i++) result += "\t";
-        result += "}";
+    if(this->size() == 0) {
+        result += "{}";
+        return result;
     }
+    result += "{\n";
+    for (size_t i = 0; i < this->size(); i++)
+    {
+        for(unsigned int j = 0; j < indent_level + 1; j++) result += "\t";
+        result += "\"" + this->data.at(i).first + "\": ";
+        switch(json::jtype::peek(*this->data.at(i).second.c_str())) {
+            case json::jtype::jarray:
+                result += std::string(json::parsing::tlws(json::jarray::parse(this->data.at(i).second).pretty(indent_level + 1).c_str()));
+                break;
+            case json::jtype::jobject:
+                result += std::string(json::parsing::tlws(json::jobject::parse(this->data.at(i).second).pretty(indent_level + 1).c_str()));
+                break;
+            default:
+                result += this->data.at(i).second;
+                break;
+        }
+
+        result += ",\n";
+    }
+    result.erase(result.size() - 2, 1);
+    for(unsigned int i = 0; i < indent_level; i++) result += "\t";
+    result += "}";
     return result;
 }
 
@@ -1330,4 +1270,36 @@ json::jarray json::data::dynamic_data::as_array() const
 json::jobject json::data::dynamic_data::as_object() const
 {
     return json::jobject::parse(this->__value);
+}
+
+std::string json::jarray::pretty(unsigned int indent_level) const
+{
+    std::string result = "";
+    for(unsigned int i = 0; i < indent_level; i++) result += "\t";
+    if(this->size() == 0) {
+        result += "[]";
+        return result;
+    }
+    result += "[\n";
+    for (size_t i = 0; i < this->size(); i++)
+    {
+        switch(json::jtype::peek(*this->at(i).as_string().c_str())) {
+            case json::jtype::jarray:
+                result += json::jarray::parse(this->at(i).as_string()).pretty(indent_level + 1);
+                break;
+            case json::jtype::jobject:
+                result += json::jobject::parse(this->at(i).as_string()).pretty(indent_level + 1);
+                break;
+            default:
+                for(unsigned int j = 0; j < indent_level + 1; j++) result += "\t";
+                result += this->at(i).serialize();
+                break;
+        }
+
+        result += ",\n";
+    }
+    result.erase(result.size() - 2, 1);
+    for(unsigned int i = 0; i < indent_level; i++) result += "\t";
+    result += "]";
+    return result;
 }

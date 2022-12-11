@@ -31,7 +31,6 @@ int main(void)
 	TEST_CONTAINS(keys, "emptyarray");
 
 	// Test individual entries
-	TEST_FALSE(result.is_array());
 	TEST_STRING_EQUAL(result.get("number").c_str(), "123.456");
 	TEST_STRING_EQUAL(result.get("string").c_str(), "\"hello \\\" world\"");
 	TEST_STRING_EQUAL(result.get("array").c_str(), "[1,2,3]");

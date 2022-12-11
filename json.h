@@ -502,6 +502,7 @@ namespace json
 		std::string as_string() const;
 		inline std::string serialize() const { return this->as_string(); }
 		inline operator std::string() const { return this->as_string(); }
+		std::string pretty(unsigned int indent_level = 0) const;
 	};
 
 	/*! \brief (k)ey (v)alue (p)air */
@@ -525,35 +526,18 @@ namespace json
 		/*! \brief The container used to store the object's data */
 		std::vector<kvp> data;
 
-		/*! \brief Flag for marking whether the object is actually a JSON array
-		 *
-		 * \details When true, the class should be interpreted as a JSON array
-		 */
-		bool array_flag;
-
 	public:
 		/*! \brief Default constructor
-		 *
-		 * @param array If true, the instance is initialized as an array. If false, the instance is initalized as an object. 
 		 */
-		inline jobject(bool array = false)
-			: array_flag(array) 
-			{ }
+		inline jobject() { }
 
 		/*! \brief Copy constructor */
 		inline jobject(const jobject &other)
-			: data(other.data),
-			array_flag(other.array_flag)
+			: data(other.data)
 		{ }
 
 		/*! \brief Destructor */
 		inline virtual ~jobject() { }
-
-		/*! \brief Flag for differentiating objects and arrays
-		 *
-		 * @return True if the instance represents an array, false if the instance represents an object
-		 */
-		bool is_array() const { return this->array_flag; }
 
 		/*! \brief Returns the number of entries in the JSON object or array */
 		inline size_t size() const { return this->data.size(); }
@@ -573,7 +557,6 @@ namespace json
 		/*! \brief Assignment operator */
 		inline jobject& operator=(const jobject rhs)
 		{
-			this->array_flag = rhs.array_flag;
 			this->data = rhs.data;
 			return *this;
 		}
@@ -584,9 +567,6 @@ namespace json
 		 */
 		jobject& operator+=(const kvp& other)
 		{
-			if (!this->array_flag && this->has_key(other.first)) throw json::parsing_error("Key conflict");
-			if(this->array_flag && other.first != "") throw json::parsing_error("Array cannot have key");
-			if(!this->array_flag && other.first == "") throw json::parsing_error("Missing key");
 			this->data.push_back(other);
 			return *this;
 		}
@@ -594,7 +574,6 @@ namespace json
 		/*! \brief Appends one JSON object to another */
 		jobject& operator+=(const jobject& other)
 		{
-			if(this->array_flag != other.array_flag) throw json::parsing_error("Array/object mismatch");
 			json::jobject copy(other);
 			for (size_t i = 0; i < copy.size(); i++) {
 				this->operator+=(copy.data.at(i));
@@ -651,7 +630,6 @@ namespace json
 		 */
 		inline bool has_key(const std::string &key) const
 		{
-			if(this->array_flag) return false;
 			for (size_t i = 0; i < this->size(); i++) if (this->data.at(i).first == key) return true;
 			return false;
 		}
@@ -689,7 +667,6 @@ namespace json
 		 */
 		inline std::string get(const std::string &key) const
 		{
-			if(this->array_flag) throw json::invalid_key(key);
 			for (size_t i = 0; i < this->size(); i++) if (this->data.at(i).first == key) return this->get(i);
 			throw json::invalid_key(key);
 		}
@@ -975,10 +952,9 @@ namespace json
 			 * @param source The JSON object the value is being sourced from
 			 * @param key The key for the value being referenced
 			 */
-			const_proxy(const jobject &source, const std::string key) : source(source), key(key) 
-			{ 
-				if(source.array_flag) throw std::logic_error("Source cannot be an array");
-			}
+			inline const_proxy(const jobject &source, const std::string key) 
+				: source(source), key(key) 
+			{ }
 
 			/*! \brief Returns another constant value from this array
 			 *
@@ -987,7 +963,7 @@ namespace json
 			 * @param index The index of the subvalue to return
 			 * @return A proxy for the value for the index
 			 */
-			const_value array(size_t index) const
+			inline const_value array(size_t index) const
 			{
 				const char *value = this->ref().c_str();
 				if(json::jtype::peek(*value) != json::jtype::jarray)
@@ -1159,7 +1135,6 @@ namespace json
 		 */
 		inline virtual jobject::proxy operator[](const std::string key)
 		{
-			if(this->array_flag) throw json::invalid_key(key);
 			return jobject::proxy(*this, key);
 		}
 
@@ -1171,7 +1146,6 @@ namespace json
 		 */
 		inline virtual const jobject::const_proxy operator[](const std::string key) const
 		{
-			if(this->array_flag) throw json::invalid_key(key);
 			return jobject::const_proxy(*this, key);
 		}
 
