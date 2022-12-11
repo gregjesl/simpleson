@@ -16,6 +16,9 @@
 /*! \brief Base namespace for simpleson */
 namespace json
 {
+	// Forward declaration
+	class jobject;
+
 	/*! \brief Exception used for invalid JSON keys */
 	class invalid_key : public std::exception
 	{
@@ -68,7 +71,7 @@ namespace json
 			jbool, ///< Boolean value
 			jnull, ///< Null value
 			not_valid ///< Value does not conform to JSON standard
-			};
+		};
 
 		jtype peek(const char input);
 
@@ -114,32 +117,32 @@ namespace json
 		#endif
 
 		/*!\ brief Pushes a value to the back of the reader 
-		 *
-		 * @param next the value to be pushed
-		 * \returns `ACCEPTED` if the value was added to the reader, `WHITESPACE` if the input was whitespace that was not stored, and `REJECTED` is the input was invalid for the value type
-		 */
+		*
+		* @param next the value to be pushed
+		* \returns `ACCEPTED` if the value was added to the reader, `WHITESPACE` if the input was whitespace that was not stored, and `REJECTED` is the input was invalid for the value type
+		*/
 		virtual push_result push(const char next);
 
 		/*!\brief Checks the value
-		 *
-		 * \returns The type of value stored in the reader, or `not_valid` if no value is stored
-		 */
+		*
+		* \returns The type of value stored in the reader, or `not_valid` if no value is stored
+		*/
 		inline virtual jtype::jtype type() const
 		{
 			return this->length() > 0 ? jtype::peek(this->front()) : json::jtype::not_valid;
 		}
 
 		/*! \brief Checks if the stored value is valid 
-		 * 
-		 * \returns `true` if the stored value is valid, `false` otherwise 
-		 */
+		* 
+		* \returns `true` if the stored value is valid, `false` otherwise 
+		*/
 		virtual bool is_valid() const;
 
 		/*! \brief Returns the stored value 
-		 *
-		 * \returns A string containing the stored value
-		 * \warning This method will return the value regardless of the state of the value, valid or not
-		 */
+		*
+		* \returns A string containing the stored value
+		* \warning This method will return the value regardless of the state of the value, valid or not
+		*/
 		inline virtual std::string readout() const { return *this; }
 
 		/*! \brief Destructor */
@@ -147,9 +150,9 @@ namespace json
 
 	protected:
 		/*! \brief The subreader used during reading
-		 * 
-		 * Arrays and objects will use a sub reader to store underlying values
-		 */
+		* 
+		* Arrays and objects will use a sub reader to store underlying values
+		*/
 		reader *sub_reader;
 
 		/*! \brief Pushes a character to a string value */
@@ -171,9 +174,9 @@ namespace json
 		push_result push_null(const char next);
 
 		/*! \brief Returns the stored state 
-		 * 
-		 * This template is intended for use with #string_reader_enum, #number_reader_enum, #array_reader_enum, and #object_reader_enum
-		 */
+		* 
+		* This template is intended for use with #string_reader_enum, #number_reader_enum, #array_reader_enum, and #object_reader_enum
+		*/
 		template<typename T>
 		T get_state() const
 		{
@@ -181,9 +184,9 @@ namespace json
 		}
 
 		/*! \brief Stores the reader state
-		 *
-		 * This template is intended for use with #string_reader_enum, #number_reader_enum, #array_reader_enum, and #object_reader_enum
-		 */
+		*
+		* This template is intended for use with #string_reader_enum, #number_reader_enum, #array_reader_enum, and #object_reader_enum
+		*/
 		template<typename T>
 		void set_state(const T state)
 		{
@@ -258,24 +261,24 @@ namespace json
 		}
 
 		/*!\ brief Pushes a value to the back of the reader 
-		 *
-		 * \see reader::push
-		 */
+		*
+		* \see reader::push
+		*/
 		virtual push_result push(const char next);
 
 		/*! \brief Checks if the stored value is valid 
-		 * 
-		 * \returns `true` if the both the key and value are valid, `false` otherwise 
-		 */
+		* 
+		* \returns `true` if the both the key and value are valid, `false` otherwise 
+		*/
 		inline virtual bool is_valid() const
 		{
 			return reader::is_valid() && this->_key.is_valid();
 		}
 
 		/*! \brief Reads out the key value pair
-		 *
-		 * \returns JSON-encoded key and JSON-encoded value seperated by a colon (:)
-		 */
+		*
+		* \returns JSON-encoded key and JSON-encoded value seperated by a colon (:)
+		*/
 		virtual std::string readout() const;
 
 	private:
@@ -285,6 +288,87 @@ namespace json
 		/*! \brief Flag for tracking whether the colon has been encountered */
 		bool _colon_read;
 	};
+
+	/*! \brief Namespace for handling JSON data */
+	namespace data
+	{
+		typedef enum data_format_enum
+		{
+			UINT8,
+			INT8
+		} data_format_t;
+
+		#define ABSTRACT_SET_AND_GET(format) 		\
+			virtual void set(format) = 0; 			\
+			virtual operator format() const = 0;
+
+		#define SET_AND_GET(format) 				\
+			virtual void set(format); 				\
+			virtual operator format() const;
+
+		class data_interface
+		{
+		public:
+			virtual jtype::jtype type() const = 0;
+			virtual void set_null() = 0;
+			virtual void set_true() = 0;
+			virtual void set_false() = 0;
+
+			ABSTRACT_SET_AND_GET(uint8_t);
+			ABSTRACT_SET_AND_GET(int8_t);
+			ABSTRACT_SET_AND_GET(uint16_t);
+			ABSTRACT_SET_AND_GET(int16_t);
+			ABSTRACT_SET_AND_GET(uint32_t);
+			ABSTRACT_SET_AND_GET(int32_t);
+			ABSTRACT_SET_AND_GET(uint64_t);
+			ABSTRACT_SET_AND_GET(int64_t);
+			ABSTRACT_SET_AND_GET(float);
+			ABSTRACT_SET_AND_GET(double);
+			ABSTRACT_SET_AND_GET(std::string);
+			ABSTRACT_SET_AND_GET(jobject);
+
+			virtual bool is_true() const = 0;
+			virtual bool is_null() const = 0;
+			virtual std::string as_string() const = 0; 
+			std::string serialize();
+		};
+
+		class dynamic_data : public data_interface
+		{
+		public:
+			inline dynamic_data() { }
+
+			virtual jtype::jtype type() const;
+			virtual void set_null();
+			virtual void set_true();
+			virtual void set_false();
+
+			SET_AND_GET(uint8_t);
+			SET_AND_GET(int8_t);
+			SET_AND_GET(uint16_t);
+			SET_AND_GET(int16_t);
+			/*
+			SET_AND_GET(uint32_t);
+			SET_AND_GET(int32_t);
+			SET_AND_GET(uint64_t);
+			SET_AND_GET(int64_t);
+			SET_AND_GET(float);
+			SET_AND_GET(double);
+			SET_AND_GET(std::string);
+			SET_AND_GET(jobject);
+			*/
+
+			virtual std::string as_string() const; 
+			virtual json::jobject as_object() const;
+
+			virtual bool is_true() const;
+			virtual bool is_null() const;
+
+			std::string serialize();
+		private:
+			std::string __value;
+		};
+	}
 
 	/*! \brief Namespace used for JSON parsing functions */
 	namespace parsing

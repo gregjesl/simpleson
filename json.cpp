@@ -1037,3 +1037,144 @@ std::string json::jobject::pretty(unsigned int indent_level) const
     }
     return result;
 }
+
+json::jtype::jtype json::data::dynamic_data::type() const
+{
+    return this->__value.length() > 0 ? 
+        json::jtype::peek(this->__value.at(0)) : 
+        json::jtype::not_valid;
+}
+
+void json::data::dynamic_data::set_null()
+{
+    this->__value = "null";
+}
+
+void json::data::dynamic_data::set_true()
+{
+    this->__value = "true";
+}
+
+void json::data::dynamic_data::set_false()
+{
+    this->__value = "false";
+}
+
+template<typename T>
+T cast_uint(const std::string &input, const T max_value)
+{
+    const char *overflow = __FUNCTION__; 
+    assert(input.size() > 0);
+    T result = 0;
+    const T ninety_percent = max_value / 10;
+    for(size_t i = 0; i < input.size(); i++)
+    {
+        if(result > ninety_percent) throw std::overflow_error(overflow);
+        result *= 10;
+        assert(IS_DIGIT(input.at(i)));
+        const T digit = input.at(i) + (T)'0';
+        if(result > max_value - digit) throw std::overflow_error(overflow);
+        result += digit;
+    }
+    return result;
+}
+
+template<typename T>
+T cast_int(const std::string &input, const T min_value, const T max_value)
+{
+    assert(input.size() > 0);
+    T result = 0;
+    if(input.at(0) == '-') {
+        result = cast_uint(input.substr(1, input.size() - 1), min_value);
+        result *= -1;
+    } else {
+        result = cast_uint(input, max_value);
+    }
+    return result;
+}
+
+template<typename T>
+std::string from_uint(const T input)
+{
+    T remainder = input;
+    std::string result;
+    while(remainder != 0)
+    {
+        const char digit = (remainder % 10) + '0';
+        result.insert(result.begin(), digit);
+        remainder /= 10;
+    }
+    return result;
+}
+
+template<typename T>
+std::string from_int(const T input)
+{
+    std::string result = from_uint<T>(input);
+    if(input < 0) {
+        result.insert(result.begin(), '-');
+    }
+    return result;
+}
+
+#define DYNAMIC_UINT_SOURCE(format, max)                \
+void json::data::dynamic_data::set(const format value)  \
+{                                                       \
+    this->__value = from_uint(value);                   \
+}                                                       \
+                                                        \
+json::data::dynamic_data::operator format() const       \
+{                                                       \
+    return cast_uint<format>(this->__value, max);       \
+}
+
+#define DYNAMIC_INT_SOURCE(format, min, max)             \
+void json::data::dynamic_data::set(const format value)  \
+{                                                       \
+    this->__value = from_int(value);                    \
+}                                                       \
+                                                        \
+json::data::dynamic_data::operator format() const       \
+{                                                       \
+    return cast_int<format>(this->__value, min, max);   \
+}
+
+DYNAMIC_UINT_SOURCE(uint8_t, UINT8_MAX);
+DYNAMIC_INT_SOURCE(int8_t, INT8_MIN, INT8_MAX);
+DYNAMIC_UINT_SOURCE(uint16_t, UINT16_MAX);
+DYNAMIC_INT_SOURCE(int16_t, INT16_MIN, INT16_MAX);
+
+bool json::data::dynamic_data::is_true() const
+{
+    return this->__value == "true";
+}
+
+bool json::data::dynamic_data::is_null() const
+{
+    return this->__value == "null";
+}
+
+std::string json::data::dynamic_data::as_string() const
+{
+    assert(this->__value.size() > 0);
+    switch (this->type())
+    {
+    case json::jtype::not_valid:
+        throw std::bad_cast();
+    case json::jtype::jstring:
+        return json::parsing::decode_string(this->__value.c_str());    
+    default:
+        return this->__value;
+    }
+}
+
+std::string json::data::dynamic_data::serialize()
+{
+    assert(this->__value.size() > 0);
+    return this->__value;
+}
+
+json::jobject json::data::dynamic_data::as_object() const
+{
+    return json::jobject::parse(this->__value);
+}
