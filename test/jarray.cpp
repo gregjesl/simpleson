@@ -36,4 +36,16 @@ int main(void)
 	// Test copy constructor
 	json::jarray copy(result);
 	TEST_STRING_EQUAL(copy.as_string().c_str(), result.as_string().c_str());
+
+	// Test adding values
+	json::jarray adder;
+	adder.push_back((uint8_t)adder.size());
+	adder.push_back((int8_t)adder.size());
+	adder.push_back((uint16_t)adder.size());
+	adder.push_back((int16_t)adder.size());
+	TEST_EQUAL(adder.size(), 4);
+	TEST_EQUAL((uint8_t)adder.at(0), 0);
+	TEST_EQUAL((int8_t)adder.at(1), 1);
+	TEST_EQUAL((uint16_t)adder.at(2), 2);
+	TEST_EQUAL((int16_t)adder.at(3), 3);
 }

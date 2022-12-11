@@ -1147,14 +1147,15 @@ T cast_uint(const std::string &input, const T max_value)
 {
     const char *overflow = __FUNCTION__; 
     assert(input.size() > 0);
-    T result = 0;
+    if(input == "0") return 0;
+    T result = input.at(0) - (T)'0';
     const T ninety_percent = max_value / 10;
-    for(size_t i = 0; i < input.size(); i++)
+    for(size_t i = 1; i < input.size(); i++)
     {
         if(result > ninety_percent) throw std::overflow_error(overflow);
         result *= 10;
         assert(IS_DIGIT(input.at(i)));
-        const T digit = input.at(i) + (T)'0';
+        const T digit = input.at(i) - (T)'0';
         if(result > max_value - digit) throw std::overflow_error(overflow);
         result += digit;
     }
@@ -1179,6 +1180,7 @@ template<typename T>
 std::string from_uint(const T input)
 {
     T remainder = input;
+    if(input == 0) return "0";
     std::string result;
     while(remainder != 0)
     {
