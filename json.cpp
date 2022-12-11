@@ -827,6 +827,77 @@ std::vector<std::string> json::parsing::parse_array(const char *input)
     return result;
 }
 
+json::jarray json::jarray::parse(const char *input)
+{
+    // Check for valid input
+    if(input == NULL) throw std::invalid_argument(__FUNCTION__);
+    const char *index = json::parsing::tlws(input);
+    if(EMPTY_STRING(index) || *index != '[') throw std::invalid_argument(__FUNCTION__);
+
+    // Initalize the result
+    json::jarray result;
+    index++;
+    SKIP_WHITE_SPACE(index);
+
+    // Check for empty array
+    if (*index == ']') return result;
+
+    // Initialize the reader
+    json::reader entry;
+
+    // Iterate over values
+    next_value:
+
+    // Verify an empty entry
+    assert(entry.length() == 0);
+
+    // Read the data
+    while(entry.push(*index) != reader::REJECTED) index++;
+    
+    // Verify a valid read
+    if(!entry.is_valid()) throw std::invalid_argument(__FUNCTION__);
+
+    // Store the value
+    result.push_back(entry);
+
+    // Clear the reader
+    entry.clear();
+
+    // Trim any whitespace
+    SKIP_WHITE_SPACE(index);
+
+    // Check for remaining value
+    if(EMPTY_STRING(index)) throw std::invalid_argument(__FUNCTION__);
+
+    // Check for next entry
+    if(*index == ',') 
+    {
+        index++;
+        SKIP_WHITE_SPACE(index);
+        goto next_value;
+    }
+
+    // At this point the array should be closed
+    if(*index != ']') throw std::invalid_argument(__FUNCTION__);
+
+    index++;
+    return result;
+}
+
+std::string json::jarray::as_string() const
+{
+    if(this->size() == 0) return "[]";
+    std::string result = "[";
+    for(size_t i = 0; i < this->size() - 1; i++)
+    {
+        result.append(this->at(i).serialize());
+        result.push_back(',');
+    }
+    result.append(this->back().serialize());
+    result.push_back(']');
+    return result;
+}
+
 json::jobject::entry::operator int() const { return this->get_number<int>(INT_FORMAT); }
 json::jobject::entry::operator unsigned int() const { return this->get_number<unsigned int>(UINT_FORMAT); }
 json::jobject::entry::operator long() const { return this->get_number<long>(LONG_FORMAT); }
@@ -1038,6 +1109,17 @@ std::string json::jobject::pretty(unsigned int indent_level) const
     return result;
 }
 
+json::data::dynamic_data::dynamic_data(const json::reader &input)
+{
+    this->operator=(input);
+}
+
+void json::data::dynamic_data::operator=(const json::reader &input)
+{
+    if(!input.is_valid()) throw std::invalid_argument(__FUNCTION__);
+    this->__value = input.readout();
+}
+
 json::jtype::jtype json::data::dynamic_data::type() const
 {
     return this->__value.length() > 0 ? 
@@ -1117,32 +1199,96 @@ std::string from_int(const T input)
     return result;
 }
 
-#define DYNAMIC_UINT_SOURCE(format, max)                \
-void json::data::dynamic_data::set(const format value)  \
-{                                                       \
-    this->__value = from_uint(value);                   \
-}                                                       \
-                                                        \
-json::data::dynamic_data::operator format() const       \
-{                                                       \
-    return cast_uint<format>(this->__value, max);       \
+#define DYNAMIC_UINT_SOURCE(format, max)                    \
+json::data::dynamic_data::dynamic_data(const format seed)   \
+{                                                           \
+    this->set(seed);                                        \
+}                                                           \
+                                                            \
+void json::data::dynamic_data::set(const format value)      \
+{                                                           \
+    this->__value = from_uint(value);                       \
+}                                                           \
+                                                            \
+json::data::dynamic_data::operator format() const           \
+{                                                           \
+    return cast_uint<format>(this->__value, max);           \
 }
 
-#define DYNAMIC_INT_SOURCE(format, min, max)             \
-void json::data::dynamic_data::set(const format value)  \
-{                                                       \
-    this->__value = from_int(value);                    \
-}                                                       \
-                                                        \
-json::data::dynamic_data::operator format() const       \
-{                                                       \
-    return cast_int<format>(this->__value, min, max);   \
+#define DYNAMIC_INT_SOURCE(format, min, max)                \
+json::data::dynamic_data::dynamic_data(const format seed)   \
+{                                                           \
+    this->set(seed);                                        \
+}                                                           \
+                                                            \
+void json::data::dynamic_data::set(const format value)      \
+{                                                           \
+    this->__value = from_int(value);                        \
+}                                                           \
+                                                            \
+json::data::dynamic_data::operator format() const           \
+{                                                           \
+    return cast_int<format>(this->__value, min, max);       \
 }
 
 DYNAMIC_UINT_SOURCE(uint8_t, UINT8_MAX);
 DYNAMIC_INT_SOURCE(int8_t, INT8_MIN, INT8_MAX);
 DYNAMIC_UINT_SOURCE(uint16_t, UINT16_MAX);
 DYNAMIC_INT_SOURCE(int16_t, INT16_MIN, INT16_MAX);
+DYNAMIC_UINT_SOURCE(uint32_t, UINT32_MAX);
+DYNAMIC_INT_SOURCE(int32_t, INT32_MIN, INT32_MAX);
+DYNAMIC_UINT_SOURCE(uint64_t, UINT64_MAX);
+DYNAMIC_INT_SOURCE(int64_t, INT64_MIN, INT64_MAX);
+
+void json::data::dynamic_data::set(const float value)
+{
+    this->__value = json::parsing::get_number_string<float>(value, FLOAT_FORMAT);
+}
+
+json::data::dynamic_data::operator float() const
+{
+    return json::parsing::get_number<float>(this->__value.c_str(), FLOAT_FORMAT);
+}
+
+void json::data::dynamic_data::set(const double value)
+{
+    this->__value = json::parsing::get_number_string<double>(value, DOUBLE_FORMAT);
+}
+
+json::data::dynamic_data::operator double() const
+{
+    return json::parsing::get_number<float>(this->__value.c_str(), DOUBLE_FORMAT);
+}
+
+void json::data::dynamic_data::set(const std::string value)
+{
+    this->__value = json::parsing::encode_string(value.c_str());
+}
+
+json::data::dynamic_data::operator std::string() const
+{
+    return json::parsing::decode_string(this->__value.c_str());
+}
+
+void json::data::dynamic_data::set(const jarray value)
+{
+    this->__value = value.serialize();
+}
+
+json::data::dynamic_data::operator json::jarray() const
+{
+    return jarray::parse(this->__value);
+}
+
+void json::data::dynamic_data::set(const jobject value)
+{
+    this->__value = value.as_string();
+}
+
+json::data::dynamic_data::operator jobject() const
+{
+    return jobject::parse(this->__value);
+}
 
 bool json::data::dynamic_data::is_true() const
 {
@@ -1168,10 +1314,15 @@ std::string json::data::dynamic_data::as_string() const
     }
 }
 
-std::string json::data::dynamic_data::serialize()
+std::string json::data::dynamic_data::serialize() const
 {
     assert(this->__value.size() > 0);
     return this->__value;
+}
+
+json::jarray json::data::dynamic_data::as_array() const
+{
+    return json::jarray::parse(this->__value);
 }
 
 json::jobject json::data::dynamic_data::as_object() const

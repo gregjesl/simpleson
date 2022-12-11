@@ -19,6 +19,9 @@ namespace json
 	// Forward declaration
 	class jobject;
 
+	// Forward declaration
+	class jarray;
+
 	/*! \brief Exception used for invalid JSON keys */
 	class invalid_key : public std::exception
 	{
@@ -303,6 +306,7 @@ namespace json
 			virtual operator format() const = 0;
 
 		#define SET_AND_GET(format) 				\
+			dynamic_data(const format seed);		\
 			virtual void set(format); 				\
 			virtual operator format() const;
 
@@ -325,18 +329,30 @@ namespace json
 			ABSTRACT_SET_AND_GET(float);
 			ABSTRACT_SET_AND_GET(double);
 			ABSTRACT_SET_AND_GET(std::string);
+			ABSTRACT_SET_AND_GET(jarray);
 			ABSTRACT_SET_AND_GET(jobject);
 
 			virtual bool is_true() const = 0;
 			virtual bool is_null() const = 0;
 			virtual std::string as_string() const = 0; 
-			std::string serialize();
+			virtual jarray as_array() const = 0;
+			virtual jobject as_object() const = 0;
+			virtual std::string serialize() const = 0;
 		};
 
 		class dynamic_data : public data_interface
 		{
 		public:
 			inline dynamic_data() { }
+			dynamic_data(const reader &input);
+			inline dynamic_data(const dynamic_data &other)
+				: __value(other.__value)
+			{ }
+
+			virtual inline ~dynamic_data() { }
+
+			void operator= (const reader &input);
+			inline void operator=(const dynamic_data &other) { this->__value = other.__value; }
 
 			virtual jtype::jtype type() const;
 			virtual void set_null();
@@ -347,7 +363,6 @@ namespace json
 			SET_AND_GET(int8_t);
 			SET_AND_GET(uint16_t);
 			SET_AND_GET(int16_t);
-			/*
 			SET_AND_GET(uint32_t);
 			SET_AND_GET(int32_t);
 			SET_AND_GET(uint64_t);
@@ -355,16 +370,17 @@ namespace json
 			SET_AND_GET(float);
 			SET_AND_GET(double);
 			SET_AND_GET(std::string);
+			SET_AND_GET(jarray);
 			SET_AND_GET(jobject);
-			*/
 
 			virtual std::string as_string() const; 
+			virtual json::jarray as_array() const;
 			virtual json::jobject as_object() const;
 
 			virtual bool is_true() const;
 			virtual bool is_null() const;
 
-			std::string serialize();
+			virtual std::string serialize() const;
 		private:
 			std::string __value;
 		};
@@ -477,6 +493,16 @@ namespace json
 		 */
 		std::vector<std::string> parse_array(const char *input);
 	}
+
+	class jarray : public std::vector<data::dynamic_data>
+	{
+	public:
+		static jarray parse(const char *input);
+		static inline jarray parse(const std::string &input) { return jarray::parse(input.c_str()); }
+		std::string as_string() const;
+		inline std::string serialize() const { return this->as_string(); }
+		inline operator std::string() const { return this->as_string(); }
+	};
 
 	/*! \brief (k)ey (v)alue (p)air */
 	typedef std::pair<std::string, std::string> kvp;
