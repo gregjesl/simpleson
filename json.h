@@ -104,11 +104,13 @@ namespace json
 		/*! \brief Reader constructor */
 		inline reader() : std::string(), sub_reader(NULL) { this->clear(); }
 
-		inline reader(const std::string input)
+		static reader parse(const std::string input)
 		{
+			reader result;
 			for(size_t i = 0; i < input.size(); i++) {
-				this->push(input[i]);
+				result.push(input[i]);
 			}
+			return result;
 		}
 
 		/*! \brief Resets the reader */
@@ -582,19 +584,25 @@ namespace json
 		template<typename T>
 		jarray& operator=(const std::vector<T> input)
 		{
-			this->clear();
-			this->resize(input.size());
-			for(size_t i = 0; i < input.size(); i++)
-			{
-				this->push_back((T)input.at(i));
-			}
+			this->set(input);
 			return *this;
 		}
 
 		template<typename T>
 		jarray(const std::vector<T> input)
 		{
-			this->operator=(input);
+			this->set(input);
+		}
+
+		template<typename T>
+		void set(const std::vector<T> input)
+		{
+			this->clear();
+			this->reserve(input.size());
+			for(size_t i = 0; i < input.size(); i++)
+			{
+				this->push_back((T)input.at(i));
+			}
 		}
 
 		static jarray parse(const char *input);

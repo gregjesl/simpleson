@@ -61,7 +61,8 @@ int main(void)
 	test["float"] = 12.3f;
 	test["string"] = "test \"string";
 	int test_array[3] = { 1, 2, 3 };
-	test["array"] = std::vector<int>(test_array, test_array + 3);
+	json::jarray test_jarray = std::vector<int>(test_array, test_array + 3);
+	test["array"] = test_jarray;
 	std::string test_string_array[2] = { "hello", "world" };
 	test["strarray"] = json::jarray(std::vector<std::string>(test_string_array, test_string_array + 2));
 	test["emptyarray"] = std::vector<std::string>();
@@ -138,7 +139,7 @@ int main(void)
 	TEST_EQUAL(objarrayecho.size(), 2);
 	TEST_FALSE(retest["objarray"].is_string());
 	TEST_FALSE(retest["objarray"].is_number());
-	TEST_TRUE(retest["objarray"].is_object());
+	TEST_FALSE(retest["objarray"].is_object());
 	TEST_TRUE(retest["objarray"].is_array());
 	TEST_FALSE(retest["objarray"].is_bool());
 	TEST_FALSE(retest["objarray"].is_null());
@@ -148,7 +149,7 @@ int main(void)
 	TEST_EQUAL(emptyarray.size(), 0);
 	TEST_FALSE(retest["emptyarray"].is_string());
 	TEST_FALSE(retest["emptyarray"].is_number());
-	TEST_TRUE(retest["emptyarray"].is_object());
+	TEST_FALSE(retest["emptyarray"].is_object());
 	TEST_TRUE(retest["emptyarray"].is_array());
 	TEST_FALSE(retest["emptyarray"].is_bool());
 	TEST_FALSE(retest["emptyarray"].is_null());

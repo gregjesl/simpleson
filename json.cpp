@@ -1385,7 +1385,8 @@ T get_obj_value(const json::jobject * obj, const std::string &key)
 {
     if(obj == NULL || key.size() == 0) throw std::runtime_error(__FUNCTION__);
     if(!obj->has_key(key)) throw json::invalid_key(key);
-    json::reader stream(obj->get(key));
+    const std::string raw = obj->get(key);
+    const json::reader stream = json::reader::parse(raw);
     return json::data::dynamic_data(stream);
 }
 
@@ -1466,7 +1467,9 @@ std::string json::proxy::as_string() const
     if(!this->__parent.attached() || this->__key.size() == 0) throw std::runtime_error(__FUNCTION__);
     const json::jobject *parent = this->__parent.parent();
     if(!parent->has_key(this->__key)) throw json::invalid_key(this->__key);
-    return json::parsing::decode_string(parent->get(this->__key).c_str());
+    return this->type() == json::jtype::jstring ? 
+        json::parsing::decode_string(parent->get(this->__key).c_str())
+        : parent->get(this->__key).c_str();
 }
 
 json::proxy::operator std::string() const
