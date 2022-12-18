@@ -6,25 +6,25 @@ int main(void)
 {
 	const char *input =
 		"{\n"
-		    "\t\"number\": 123.456,\n"
-		    "\t\"string\": \"hello \\\" world\",\n"
 		    "\t\"array\": [\n"
                 "\t\t1,\n"
                 "\t\t2,\n"
                 "\t\t3\n"
             "\t],\n"
 		    "\t\"boolean\": true,\n"
-		    "\t\"isnull\": null,\n"
-		    "\t\"objarray\": [\n"
+		    "\t\"emptyarray\": [],\n"
+			"\t\"isnull\": null,\n"
+			"\t\"number\": 123.456,\n"
+			"\t\"objarray\": [\n"
                 "\t\t{\n"
                     "\t\t\t\"key\": \"value\"\n"
                 "\t\t}\n"
             "\t],\n"
-		    "\t\"strarray\": [\n"
+			"\t\"strarray\": [\n"
                 "\t\t\"hello\",\n"
                 "\t\t\"world\"\n"
             "\t],\n"
-		    "\t\"emptyarray\": []\n"
+			"\t\"string\": \"hello \\\" world\"\n"
 		"}";
 
     printf("Input: \n%s\n", input);

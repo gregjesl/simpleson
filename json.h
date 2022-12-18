@@ -623,8 +623,8 @@ namespace json
 		}
 	};
 
-	/*! \brief (k)ey (v)alue (p)air */
 	typedef std::pair<std::string, std::string> kvp;
+	typedef std::map<std::string, std::string> jmap;
 
 	/*! \class jobject
 	 * \brief The class used for manipulating JSON objects and arrays
@@ -642,7 +642,7 @@ namespace json
 	{
 	private:
 		/*! \brief The container used to store the object's data */
-		std::vector<kvp> data;
+		jmap data;
 
 		std::list<data::link*> __proxies;
 
@@ -665,7 +665,7 @@ namespace json
 		inline size_t size() const { return this->data.size(); }
 
 		/*! \brief Clears the JSON object or array */
-		inline void clear() { this->data.resize(0); }
+		inline void clear() { this->data.clear(); }
 
 		void attach(data::link *prox);
 
@@ -693,16 +693,17 @@ namespace json
 		 */
 		jobject& operator+=(const kvp& other)
 		{
-			this->data.push_back(other);
+			this->data.insert(other);
 			return *this;
 		}
 
 		/*! \brief Appends one JSON object to another */
 		jobject& operator+=(const jobject& other)
 		{
-			json::jobject copy(other);
-			for (size_t i = 0; i < copy.size(); i++) {
-				this->operator+=(copy.data.at(i));
+			for (json::jmap::const_iterator it = other.data.begin(); it != other.data.end(); ++it)
+			{
+				if(this->has_key(it->first)) throw json::invalid_key("Key conflict");
+				this->data.insert(kvp(it->first, it->second));
 			}
 			return *this;
 		}
@@ -756,8 +757,7 @@ namespace json
 		 */
 		inline bool has_key(const std::string &key) const
 		{
-			for (size_t i = 0; i < this->size(); i++) if (this->data.at(i).first == key) return true;
-			return false;
+			return this->data.find(key) != this->data.end();
 		}
 
 		/*! \brief Returns a list of the object's keys
@@ -775,16 +775,6 @@ namespace json
 		 */
 		void set(const std::string &key, const std::string &value);
 
-		/*! \brief Returns the serialized value at a given index
-		 *
-		 * @param index The index of the desired element
-		 * @return A serialized representation of the value at the given index
-		 */
-		inline std::string get(const size_t index) const
-		{
-			return this->data.at(index).second;
-		}
-
 		/*! \brief Returns the serialized value associated with a key
 		 * 
 		 * @param key The key for the desired element
@@ -793,8 +783,9 @@ namespace json
 		 */
 		inline std::string get(const std::string &key) const
 		{
-			for (size_t i = 0; i < this->size(); i++) if (this->data.at(i).first == key) return this->get(i);
-			throw json::invalid_key(key);
+			std::map<std::string, std::string>::const_iterator it = this->data.find(key);
+			if(it == this->data.end()) throw json::invalid_key(key);
+			return it->second;
 		}
 
 		/*! \brief Removes the entry associated with the key
@@ -803,15 +794,6 @@ namespace json
 		 * \note If the key is not found in the object, no action is taken
 		 */
 		void remove(const std::string &key);
-
-		/*! \brief Removes the entry at the specified index
-		 *
-		 * @param index The index of the element to be removed
-		 */
-		void remove(const size_t index)
-		{
-			this->data.erase(this->data.begin() + index);
-		}
 
 		/*! \brief Returns an element of the JSON object
 		 * 
