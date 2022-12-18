@@ -34,10 +34,10 @@ int main(void)
     "]";
 
     // Parse the test array
-    json::jobject example = json::jobject::parse(test);
+    json::jarray example = json::jarray::parse(test);
 
     // Access the data
-    std::string music_desired = example.array(0).get("hobbies").array(1).get("music").as_string();
+    std::string music_desired = example.at(0).as_object()["hobbies"].as_array().at(1).as_object()["music"].as_string();
 
     // Print the data
     printf("Music desired: %s\n", music_desired.c_str()); // Returns "rock"
@@ -46,7 +46,7 @@ int main(void)
     assert(music_desired == std::string("rock"));
 
     // Access the second entry
-    music_desired = example.array(1).get("hobbies").array(1).get("music").as_string();
+    music_desired = example.at(1).as_object()["hobbies"].as_array().at(1).as_object()["music"].as_string();
 
     // Print the data
     printf("Music desired: %s\n", music_desired.c_str()); // Returns "classical"

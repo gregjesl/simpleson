@@ -22,11 +22,11 @@ int main(void)
     printf("%s\n", example.pretty().c_str());
 
     // Access each item
-    assert(example["array"].array(0) == obj1);
-    assert(example["array"].array(1) == obj2);
+    assert(example["array"].as_array().at(0).as_object() == obj1);
+    assert(example["array"].as_array().at(1).as_object() == obj2);
 
     // Read back the entire array
-    std::vector<json::jobject> readbackarray = example["array"];
+    std::vector<json::jobject> readbackarray = example["array"].as_array();
 
     // Access each item
     json::jobject readback1 = readbackarray[0];
