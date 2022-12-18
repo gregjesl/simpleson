@@ -20,13 +20,6 @@
  */
 #define SKIP_WHITE_SPACE(str) { const char *next = json::parsing::tlws(str); str = next; }
 
-/*! \brief Determines if the end character of serialized JSON is encountered
- * 
- * @param obj The JSON object or array that is being written to
- * @param index The pointer to the character to be checked
- */
-#define END_CHARACTER_ENCOUNTERED(obj, index) (obj.is_array() ? *index == ']' : *index == '}')
-
 /*! \brief Determines if the supplied character is a digit
  *
  * @param input The character to be tested
@@ -794,73 +787,102 @@ std::vector<std::string> json::parsing::parse_array(const char *input)
     return result;
 }
 
-json::jobject::entry::operator int() const { return this->get_number<int>(INT_FORMAT); }
-json::jobject::entry::operator unsigned int() const { return this->get_number<unsigned int>(UINT_FORMAT); }
-json::jobject::entry::operator long() const { return this->get_number<long>(LONG_FORMAT); }
-json::jobject::entry::operator unsigned long() const { return this->get_number<unsigned long>(ULONG_FORMAT); }
-json::jobject::entry::operator char() const { return this->get_number<char>(CHAR_FORMAT); }
-json::jobject::entry::operator float() const { return this->get_number<float>(FLOAT_FORMAT); }
-json::jobject::entry::operator double() const { return this->get_number<double>(DOUBLE_FORMAT); }
-
-json::jobject::entry::operator std::vector<int>() const { return this->get_number_array<int>(INT_FORMAT); }
-json::jobject::entry::operator std::vector<unsigned int>() const { return this->get_number_array<unsigned int>(UINT_FORMAT); }
-json::jobject::entry::operator std::vector<long>() const { return this->get_number_array<long>(LONG_FORMAT); }
-json::jobject::entry::operator std::vector<unsigned long>() const { return this->get_number_array<unsigned long>(ULONG_FORMAT); }
-json::jobject::entry::operator std::vector<char>() const { return this->get_number_array<char>(CHAR_FORMAT); }
-json::jobject::entry::operator std::vector<float>() const { return this->get_number_array<float>(FLOAT_FORMAT); }
-json::jobject::entry::operator std::vector<double>() const { return this->get_number_array<double>(DOUBLE_FORMAT); }
-
-void json::jobject::proxy::set_array(const std::vector<std::string> &values, const bool wrap)
+json::jarray json::jarray::parse(const char *input)
 {
-    std::string value = "[";
-    for (size_t i = 0; i < values.size(); i++)
+    // Check for valid input
+    if(input == NULL) throw std::invalid_argument(__FUNCTION__);
+    const char *index = json::parsing::tlws(input);
+    if(EMPTY_STRING(index) || *index != '[') throw std::invalid_argument(__FUNCTION__);
+
+    // Initalize the result
+    json::jarray result;
+    index++;
+    SKIP_WHITE_SPACE(index);
+
+    // Check for empty array
+    if (*index == ']') return result;
+
+    // Initialize the reader
+    json::reader entry;
+
+    // Iterate over values
+    next_value:
+
+    // Verify an empty entry
+    assert(entry.length() == 0);
+
+    // Read the data
+    while(entry.push(*index) != reader::REJECTED) index++;
+    
+    // Verify a valid read
+    if(!entry.is_valid()) throw std::invalid_argument(__FUNCTION__);
+
+    // Store the value
+    result.push_back(entry);
+
+    // Clear the reader
+    entry.clear();
+
+    // Trim any whitespace
+    SKIP_WHITE_SPACE(index);
+
+    // Check for remaining value
+    if(EMPTY_STRING(index)) throw std::invalid_argument(__FUNCTION__);
+
+    // Check for next entry
+    if(*index == ',') 
     {
-        if (wrap) value += json::parsing::encode_string(values[i].c_str()) + ",";
-        else value += values[i] + ",";
+        index++;
+        SKIP_WHITE_SPACE(index);
+        goto next_value;
     }
-    if(values.size() > 0) value.erase(value.size() - 1, 1);
-    value += "]";
-    this->sink.set(key, value);
+
+    // At this point the array should be closed
+    if(*index != ']') throw std::invalid_argument(__FUNCTION__);
+
+    index++;
+    return result;
+}
+
+std::string json::jarray::as_string() const
+{
+    if(this->size() == 0) return "[]";
+    std::string result = "[";
+    for(size_t i = 0; i < this->size() - 1; i++)
+    {
+        result.append(this->at(i).serialize());
+        result.push_back(',');
+    }
+    result.append(this->back().serialize());
+    result.push_back(']');
+    return result;
 }
 
 json::jobject json::jobject::parse(const char *input)
 {
     const char error[] = "Input is not a valid object";
     const char *index = json::parsing::tlws(input);
+    if(*index != '{') throw std::invalid_argument(__FUNCTION__);
+    index++;
     json::jobject result;
     json::reader stream;
-    switch (*index)
-    {
-    case '{':
-        // Result is already an object
-        break;
-    case '[':
-        result = json::jobject(true);
-        break;
-    default:
-        throw json::parsing_error(error);
-        break;
-    }
-    index++;
     SKIP_WHITE_SPACE(index);
     if (EMPTY_STRING(index)) throw json::parsing_error(error);
 
-    while (!EMPTY_STRING(index) && !END_CHARACTER_ENCOUNTERED(result, index))
+    while (!EMPTY_STRING(index) && *index != '}')
     {
         // Get key
         kvp entry;
 
-        if(!result.is_array()) {
-            json::parsing::parse_results key = json::parsing::parse(index);
-            if (key.type != json::jtype::jstring || key.value == "") throw json::parsing_error(error);
-            entry.first = json::parsing::decode_string(key.value.c_str());
-            index = key.remainder;
+        json::parsing::parse_results key = json::parsing::parse(index);
+        if (key.type != json::jtype::jstring || key.value == "") throw json::parsing_error(error);
+        entry.first = json::parsing::decode_string(key.value.c_str());
+        index = key.remainder;
 
-            // Get value
-            SKIP_WHITE_SPACE(index);
-            if (*index != ':') throw json::parsing_error(error);
-            index++;
-        }
+        // Get value
+        SKIP_WHITE_SPACE(index);
+        if (*index != ':') throw json::parsing_error(error);
+        index++;
 
         SKIP_WHITE_SPACE(index);
         json::parsing::parse_results value = json::parsing::parse(index);
@@ -870,122 +892,577 @@ json::jobject json::jobject::parse(const char *input)
 
         // Clean up
         SKIP_WHITE_SPACE(index);
-        if (*index != ',' && !END_CHARACTER_ENCOUNTERED(result, index)) throw json::parsing_error(error);
+        if (*index != ',' && *index != '}') throw json::parsing_error(error);
         if (*index == ',') index++;
-        result += entry;
+        if(result.has_key(entry.first)) throw json::parsing_error("Key collision");
+        result.data.insert(entry);
 
     }
-    if (EMPTY_STRING(index) || !END_CHARACTER_ENCOUNTERED(result, index)) throw json::parsing_error(error);
+    if (EMPTY_STRING(index) || *index != '}') throw json::parsing_error(error);
     index++;
+    return result;
+}
+
+json::jobject::~jobject()
+{
+    while(!this->__proxies.empty()) {
+        this->__proxies.front()->detatch();
+        this->__proxies.pop_front();
+    }
+}
+
+void json::jobject::attach(json::data::link *prox)
+{
+    this->detatch(prox);
+    this->__proxies.push_back(prox);
+}
+
+void json::jobject::detatch(json::data::link *prox)
+{
+    this->__proxies.remove(prox);
+}
+
+json::key_list_t json::jobject::list_keys() const
+{
+    // Initialize the result
+    key_list_t result;
+
+    for (json::jmap::const_iterator it = this->data.begin(); it != this->data.end(); ++it)
+    {
+        result.push_back(it->first);
+    }
     return result;
 }
 
 void json::jobject::set(const std::string &key, const std::string &value)
 {
-    if(this->array_flag) throw json::invalid_key(key);
-    for (size_t i = 0; i < this->size(); i++)
-    {
-        if (this->data.at(i).first == key)
-        {
-            this->data.at(i).second = value;
-            return;
-        }
+    json::jmap::iterator it = this->data.find(key);
+    if(it != this->data.end()) {
+        it->second = value;
+    } else {
+        this->data.insert(kvp(key, value));
     }
-    kvp entry;
-    entry.first = key;
-    entry.second = value;
-    this->data.push_back(entry);
 }
 
 void json::jobject::remove(const std::string &key)
 {
-    for (size_t i = 0; i < this->size(); i++)
-    {
-        if (this->data.at(i).first == key)
-        {
-            this->remove(i);
-        }
-    }
+    this->data.erase(key);
 }
 
 json::jobject::operator std::string() const
 {
-    if (is_array()) {
-        if (this->size() == 0) return "[]";
-        std::string result = "[";
-        for (size_t i = 0; i < this->size(); i++)
-        {
-            result += this->data.at(i).second + ",";
-        }
-        result.erase(result.size() - 1, 1);
-        result += "]";
-        return result;
-    } else {
-        if (this->size() == 0) return "{}";
-        std::string result = "{";
-        for (size_t i = 0; i < this->size(); i++)
-        {
-            result += json::parsing::encode_string(this->data.at(i).first.c_str()) + ":" + this->data.at(i).second + ",";
-        }
-        result.erase(result.size() - 1, 1);
-        result += "}";
-        return result;
+    if (this->size() == 0) return "{}";
+    std::string result = "{";
+    for (json::jmap::const_iterator it = this->data.begin(); it != this->data.end(); ++it)
+    {
+        result += json::parsing::encode_string(it->first.c_str()) + ":" + it->second + ",";
     }
+    result.erase(result.size() - 1, 1);
+    result += "}";
+    return result;
 }
 
 std::string json::jobject::pretty(unsigned int indent_level) const
 {
     std::string result = "";
     for(unsigned int i = 0; i < indent_level; i++) result += "\t";
-    if (is_array()) {
-        if(this->size() == 0) {
-            result += "[]";
-            return result;
+    if(this->size() == 0) {
+        result += "{}";
+        return result;
+    }
+    result += "{\n";
+    for (json::jmap::const_iterator it = this->data.begin(); it != this->data.end(); ++it)
+    {
+        for(unsigned int j = 0; j < indent_level + 1; j++) result += "\t";
+        result += "\"" + it->first + "\": ";
+        switch(json::jtype::peek(*it->second.c_str())) {
+            case json::jtype::jarray:
+                result += std::string(json::parsing::tlws(json::jarray::parse(it->second).pretty(indent_level + 1).c_str()));
+                break;
+            case json::jtype::jobject:
+                result += std::string(json::parsing::tlws(json::jobject::parse(it->second).pretty(indent_level + 1).c_str()));
+                break;
+            default:
+                result += it->second;
+                break;
         }
-        result += "[\n";
-        for (size_t i = 0; i < this->size(); i++)
-        {
-            switch(json::jtype::peek(*this->data.at(i).second.c_str())) {
-                case json::jtype::jarray:
-                case json::jtype::jobject:
-                    result += json::jobject::parse(this->data.at(i).second).pretty(indent_level + 1);
-                    break;
-                default:
-                    for(unsigned int j = 0; j < indent_level + 1; j++) result += "\t";
-                    result += this->data.at(i).second;
-                    break;
-            }
 
-            result += ",\n";
-        }
-        result.erase(result.size() - 2, 1);
-        for(unsigned int i = 0; i < indent_level; i++) result += "\t";
-        result += "]";
-    } else {
-        if(this->size() == 0) {
-            result += "{}";
-            return result;
-        }
-        result += "{\n";
-        for (size_t i = 0; i < this->size(); i++)
-        {
-            for(unsigned int j = 0; j < indent_level + 1; j++) result += "\t";
-            result += "\"" + this->data.at(i).first + "\": ";
-            switch(json::jtype::peek(*this->data.at(i).second.c_str())) {
-                case json::jtype::jarray:
-                case json::jtype::jobject:
-                    result += std::string(json::parsing::tlws(json::jobject::parse(this->data.at(i).second).pretty(indent_level + 1).c_str()));
-                    break;
-                default:
-                    result += this->data.at(i).second;
-                    break;
-            }
+        result += ",\n";
+    }
+    result.erase(result.size() - 2, 1);
+    for(unsigned int i = 0; i < indent_level; i++) result += "\t";
+    result += "}";
+    return result;
+}
 
-            result += ",\n";
-        }
-        result.erase(result.size() - 2, 1);
-        for(unsigned int i = 0; i < indent_level; i++) result += "\t";
-        result += "}";
+json::data::dynamic_data::dynamic_data(const json::reader &input)
+{
+    this->operator=(input);
+}
+
+void json::data::dynamic_data::operator=(const json::reader &input)
+{
+    if(!input.is_valid()) throw std::invalid_argument(__FUNCTION__);
+    this->__value = input.readout();
+}
+
+json::jtype::jtype json::data::dynamic_data::type() const
+{
+    return this->__value.length() > 0 ? 
+        json::jtype::peek(this->__value.at(0)) : 
+        json::jtype::not_valid;
+}
+
+void json::data::dynamic_data::set_null()
+{
+    this->__value = "null";
+}
+
+void json::data::dynamic_data::set_true()
+{
+    this->__value = "true";
+}
+
+void json::data::dynamic_data::set_false()
+{
+    this->__value = "false";
+}
+
+template<typename T>
+T cast_uint(const std::string &input, const T max_value)
+{
+    const char *overflow = __FUNCTION__; 
+    assert(input.size() > 0);
+    if(input == "0") return 0;
+    T result = input.at(0) - (T)'0';
+    const T ninety_percent = max_value / 10;
+    for(size_t i = 1; i < input.size(); i++)
+    {
+        if(result > ninety_percent) throw std::overflow_error(overflow);
+        result *= 10;
+        assert(IS_DIGIT(input.at(i)));
+        const T digit = input.at(i) - (T)'0';
+        if(result > max_value - digit) throw std::overflow_error(overflow);
+        result += digit;
     }
     return result;
+}
+
+template<typename T>
+T cast_int(const std::string &input, const T min_value, const T max_value)
+{
+    assert(input.size() > 0);
+    T result = 0;
+    if(input.at(0) == '-') {
+        result = cast_uint(input.substr(1, input.size() - 1), min_value);
+        result *= -1;
+    } else {
+        result = cast_uint(input, max_value);
+    }
+    return result;
+}
+
+template<typename T>
+std::string from_uint(const T input)
+{
+    T remainder = input;
+    if(input == 0) return "0";
+    std::string result;
+    while(remainder != 0)
+    {
+        const char digit = (remainder % 10) + '0';
+        result.insert(result.begin(), digit);
+        remainder /= 10;
+    }
+    return result;
+}
+
+template<typename T>
+std::string from_int(const T input)
+{
+    std::string result = from_uint<T>(input);
+    if(input < 0) {
+        result.insert(result.begin(), '-');
+    }
+    return result;
+}
+
+#define DYNAMIC_UINT_SOURCE(format, max)                    \
+void json::data::dynamic_data::set(const format value)      \
+{                                                           \
+    this->__value = from_uint(value);                       \
+}                                                           \
+                                                            \
+json::data::dynamic_data::operator format() const           \
+{                                                           \
+    return cast_uint<format>(this->__value, max);           \
+}
+
+#define DYNAMIC_INT_SOURCE(format, min, max)                \
+void json::data::dynamic_data::set(const format value)      \
+{                                                           \
+    this->__value = from_int(value);                        \
+}                                                           \
+                                                            \
+json::data::dynamic_data::operator format() const           \
+{                                                           \
+    return cast_int<format>(this->__value, min, max);       \
+}
+
+DYNAMIC_UINT_SOURCE(uint8_t, UINT8_MAX);
+DYNAMIC_INT_SOURCE(int8_t, INT8_MIN, INT8_MAX);
+DYNAMIC_UINT_SOURCE(uint16_t, UINT16_MAX);
+DYNAMIC_INT_SOURCE(int16_t, INT16_MIN, INT16_MAX);
+DYNAMIC_UINT_SOURCE(uint32_t, UINT32_MAX);
+DYNAMIC_INT_SOURCE(int32_t, INT32_MIN, INT32_MAX);
+DYNAMIC_UINT_SOURCE(uint64_t, UINT64_MAX);
+DYNAMIC_INT_SOURCE(int64_t, INT64_MIN, INT64_MAX);
+
+void json::data::dynamic_data::set(const float value)
+{
+    this->__value = json::parsing::get_number_string<float>(value, FLOAT_FORMAT);
+}
+
+json::data::dynamic_data::operator float() const
+{
+    return json::parsing::get_number<float>(this->__value.c_str(), FLOAT_FORMAT);
+}
+
+void json::data::dynamic_data::set(const double value)
+{
+    this->__value = json::parsing::get_number_string<double>(value, DOUBLE_FORMAT);
+}
+
+json::data::dynamic_data::operator double() const
+{
+    return json::parsing::get_number<float>(this->__value.c_str(), DOUBLE_FORMAT);
+}
+
+void json::data::dynamic_data::set(const std::string value)
+{
+    this->__value = json::parsing::encode_string(value.c_str());
+}
+
+json::data::dynamic_data::operator std::string() const
+{
+    return json::parsing::decode_string(this->__value.c_str());
+}
+
+void json::data::dynamic_data::set(const jarray value)
+{
+    this->__value = value.serialize();
+}
+
+json::data::dynamic_data::operator json::jarray() const
+{
+    return jarray::parse(this->__value);
+}
+
+void json::data::dynamic_data::set(const jobject value)
+{
+    this->__value = value.as_string();
+}
+
+json::data::dynamic_data::operator jobject() const
+{
+    return jobject::parse(this->__value);
+}
+
+bool json::data::dynamic_data::is_true() const
+{
+    return this->__value == "true";
+}
+
+bool json::data::dynamic_data::is_null() const
+{
+    return this->__value == "null";
+}
+
+std::string json::data::dynamic_data::as_string() const
+{
+    assert(this->__value.size() > 0);
+    switch (this->type())
+    {
+    case json::jtype::not_valid:
+        throw std::bad_cast();
+    case json::jtype::jstring:
+        return json::parsing::decode_string(this->__value.c_str());    
+    default:
+        return this->__value;
+    }
+}
+
+std::string json::data::dynamic_data::serialize() const
+{
+    assert(this->__value.size() > 0);
+    return this->__value;
+}
+
+json::jarray json::data::dynamic_data::as_array() const
+{
+    return json::jarray::parse(this->__value);
+}
+
+json::jobject json::data::dynamic_data::as_object() const
+{
+    return json::jobject::parse(this->__value);
+}
+
+json::data::link::link(json::jobject *parent)
+    : __parent(parent)
+{
+    this->attach();
+}
+
+json::data::link::link(const json::data::link &other)
+    : __parent(other.__parent)
+{
+    this->attach();
+}
+
+json::data::link& json::data::link::operator= (const json::data::link &other)
+{
+    this->detatch();
+    this->__parent = other.__parent;
+    this->attach();
+    return *this;
+}
+
+void json::data::link::attach()
+{
+    if(this->__parent != NULL) {
+        this->__parent->attach(this);
+    }
+}
+
+void json::data::link::detatch()
+{
+    if(this->__parent != NULL) {
+        this->__parent->detatch(this);
+        this->__parent = NULL;
+    }
+}
+
+std::string json::jarray::pretty(unsigned int indent_level) const
+{
+    std::string result = "";
+    for(unsigned int i = 0; i < indent_level; i++) result += "\t";
+    if(this->size() == 0) {
+        result += "[]";
+        return result;
+    }
+    result += "[\n";
+    for (size_t i = 0; i < this->size(); i++)
+    {
+        switch(json::jtype::peek(*this->at(i).as_string().c_str())) {
+            case json::jtype::jarray:
+                result += json::jarray::parse(this->at(i).as_string()).pretty(indent_level + 1);
+                break;
+            case json::jtype::jobject:
+                result += json::jobject::parse(this->at(i).as_string()).pretty(indent_level + 1);
+                break;
+            default:
+                for(unsigned int j = 0; j < indent_level + 1; j++) result += "\t";
+                result += this->at(i).serialize();
+                break;
+        }
+
+        result += ",\n";
+    }
+    result.erase(result.size() - 2, 1);
+    for(unsigned int i = 0; i < indent_level; i++) result += "\t";
+    result += "]";
+    return result;
+}
+
+json::proxy::proxy()
+{ 
+    // Do nothing
+}
+
+json::proxy::proxy(const json::proxy &other)
+    : __parent(other.__parent),
+    __key(other.__key)
+{
+    // Do nothing
+}
+
+json::proxy::proxy(json::jobject *parent, const std::string key)
+    : __parent(json::data::link(parent)),
+    __key(key)
+{
+    if(key.length() == 0) throw std::invalid_argument(__FUNCTION__);
+}
+
+json::proxy::proxy(json::jobject *parent, const char *key)
+    : __parent(json::data::link(parent)),
+    __key(key)
+{
+    if(strlen(key) == 0) throw std::invalid_argument(__FUNCTION__);
+}
+
+json::proxy& json::proxy::operator=(const json::proxy &other)
+{
+    if(this == &other) return *this;
+
+    this->__parent = other.__parent;
+    this->__key = other.__key;
+    return *this;
+}
+
+json::jtype::jtype json::proxy::type() const
+{
+    if(!this->__parent.attached() || this->__key.size() == 0) throw std::runtime_error(__FUNCTION__);
+    const json::jobject *parent = this->__parent.parent();
+    if(!parent->has_key(this->__key)) return json::jtype::not_valid;
+    return json::jtype::peek(parent->get(this->__key)[0]);
+}
+
+void json::proxy::set_null()
+{
+    if(!this->__parent.attached() || this->__key.size() == 0) throw std::runtime_error(__FUNCTION__);
+    this->__parent.parent()->set(this->__key, "null");
+}
+
+void json::proxy::set_true()
+{
+    if(!this->__parent.attached() || this->__key.size() == 0) throw std::runtime_error(__FUNCTION__);
+    this->__parent.parent()->set(this->__key, "true");
+}
+
+void json::proxy::set_false()
+{
+    if(!this->__parent.attached() || this->__key.size() == 0) throw std::runtime_error(__FUNCTION__);
+    this->__parent.parent()->set(this->__key, "false");
+}
+
+template<typename T>
+T get_obj_value(const json::jobject * obj, const std::string &key)
+{
+    if(obj == NULL || key.size() == 0) throw std::runtime_error(__FUNCTION__);
+    if(!obj->has_key(key)) throw json::invalid_key(key);
+    const std::string raw = obj->get(key);
+    const json::reader stream = json::reader::parse(raw);
+    return json::data::dynamic_data(stream);
+}
+
+template<typename T>
+void set_obj_value(json::jobject * obj, const std::string &key, const T input)
+{
+    if(obj == NULL || key.size() == 0) throw std::runtime_error(__FUNCTION__);
+    json::data::dynamic_data value;
+    value = input;
+    obj->set(key, value.serialize());
+}
+
+#define JSON_PROXY_GET(format)              \
+json::proxy::operator format() const  \
+{ return get_obj_value<format>(this->__parent.parent(), this->__key); }
+
+JSON_PROXY_GET(uint8_t);
+JSON_PROXY_GET(int8_t);
+JSON_PROXY_GET(uint16_t);
+JSON_PROXY_GET(int16_t);
+JSON_PROXY_GET(uint32_t);
+JSON_PROXY_GET(int32_t);
+JSON_PROXY_GET(uint64_t);
+JSON_PROXY_GET(int64_t);
+JSON_PROXY_GET(float);
+JSON_PROXY_GET(double);
+
+#define JSON_PROXY_SET(format)                  \
+void json::proxy::set(const format input) \
+{ return set_obj_value<format>(this->__parent.parent(), this->__key, input); }
+
+JSON_PROXY_SET(uint8_t);
+JSON_PROXY_SET(int8_t);
+JSON_PROXY_SET(uint16_t);
+JSON_PROXY_SET(int16_t);
+JSON_PROXY_SET(uint32_t);
+JSON_PROXY_SET(int32_t);
+JSON_PROXY_SET(uint64_t);
+JSON_PROXY_SET(int64_t);
+JSON_PROXY_SET(float);
+JSON_PROXY_SET(double);
+
+void json::proxy::set(const std::string value)
+{
+    if(!this->__parent.attached() || this->__key.size() == 0) throw std::runtime_error(__FUNCTION__);
+    json::jobject *parent = this->__parent.parent();
+    parent->set(this->__key, json::parsing::encode_string(value.c_str()));
+}
+
+void json::proxy::set(const json::jarray value)
+{
+    set_obj_value(this->__parent.parent(), this->__key, value);
+}
+
+void json::proxy::set(const json::jobject value)
+{
+    set_obj_value(this->__parent.parent(), this->__key, value);
+}
+
+bool json::proxy::is_true() const
+{
+    if(!this->__parent.attached() || this->__key.size() == 0) throw std::runtime_error(__FUNCTION__);
+    const json::jobject *parent = this->__parent.parent();
+    if(!parent->has_key(this->__key)) throw json::invalid_key(this->__key);
+    return strcmp(parent->get(this->__key).c_str(), "true") == 0;
+}
+
+bool json::proxy::is_null() const
+{
+    if(!this->__parent.attached() || this->__key.size() == 0) throw std::runtime_error(__FUNCTION__);
+    const json::jobject *parent = this->__parent.parent();
+    if(!parent->has_key(this->__key)) throw json::invalid_key(this->__key);
+    return strcmp(parent->get(this->__key).c_str(), "null") == 0;
+}
+
+std::string json::proxy::as_string() const
+{
+    if(!this->__parent.attached() || this->__key.size() == 0) throw std::runtime_error(__FUNCTION__);
+    const json::jobject *parent = this->__parent.parent();
+    if(!parent->has_key(this->__key)) throw json::invalid_key(this->__key);
+    return this->type() == json::jtype::jstring ? 
+        json::parsing::decode_string(parent->get(this->__key).c_str())
+        : parent->get(this->__key).c_str();
+}
+
+json::proxy::operator std::string() const
+{
+    return this->as_string();
+}
+
+json::jarray json::proxy::as_array() const
+{
+    if(!this->__parent.attached() || this->__key.size() == 0) throw std::runtime_error(__FUNCTION__);
+    const json::jobject *parent = this->__parent.parent();
+    if(!parent->has_key(this->__key)) throw json::invalid_key(this->__key);
+    return json::jarray::parse(parent->get(this->__key));
+}
+
+json::proxy::operator json::jarray() const
+{
+    return this->as_array();
+}
+
+json::jobject json::proxy::as_object() const
+{
+    if(!this->__parent.attached() || this->__key.size() == 0) throw std::runtime_error(__FUNCTION__);
+    const json::jobject *parent = this->__parent.parent();
+    if(!parent->has_key(this->__key)) throw json::invalid_key(this->__key);
+    return json::jobject::parse(parent->get(this->__key));
+}
+
+json::proxy::operator json::jobject() const
+{
+    return this->as_object();
+}
+
+std::string json::proxy::serialize() const
+{
+    if(!this->__parent.attached() || this->__key.size() == 0) throw std::runtime_error(__FUNCTION__);
+    const json::jobject *parent = this->__parent.parent();
+    if(!parent->has_key(this->__key)) throw json::invalid_key(this->__key);
+    return parent->get(this->__key);
 }
