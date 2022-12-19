@@ -14,6 +14,7 @@
 #include <utility>
 #include <stdexcept>
 #include <cctype>
+#include <stdint.h>
 
 /*! \brief Base namespace for simpleson */
 namespace json
