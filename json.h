@@ -25,26 +25,14 @@ namespace json
 	class jarray;
 
 	/*! \brief Exception used for invalid JSON keys */
-	class invalid_key : public std::exception
+	class invalid_key : public std::runtime_error
 	{
 	public:
-		/*! \brief The key used that was invalid */
-		const std::string key;
-
 		/*! \brief Constructor
 		 *
 		 * @param key The key that was not valid
 		 */
-		inline invalid_key(const std::string &key) : key(key) { }
-
-		/*! \brief Destructor */
-		inline virtual ~invalid_key() throw() { }
-
-		/*! \brief Returns the invalid key */
-		virtual const char* what() const throw()
-		{
-			return key.c_str();
-		}
+		inline invalid_key(const std::string &key) : std::runtime_error(key) { }
 	};
 
 	/*! \brief Exception used when invalid JSON is encountered */
