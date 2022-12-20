@@ -12,6 +12,7 @@
 #include <list>
 #include <cstdio>
 #include <utility>
+#include <typeinfo>
 #include <stdexcept>
 #include <cctype>
 #include <stdint.h>
