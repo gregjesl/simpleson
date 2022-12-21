@@ -328,7 +328,7 @@ json::reader::push_result json::reader::push_array(const char next)
             {
             case ']':
                 if(!this->sub_reader->is_valid()) return REJECTED;
-                this->append(this->sub_reader->readout());
+                this->append(this->sub_reader->serialize());
                 delete this->sub_reader;
                 this->sub_reader = NULL;
                 this->push_back(next);
@@ -336,7 +336,7 @@ json::reader::push_result json::reader::push_array(const char next)
                 return ACCEPTED;
             case ',':
                 if(!this->sub_reader->is_valid()) return REJECTED;
-                this->append(this->sub_reader->readout());
+                this->append(this->sub_reader->serialize());
                 delete this->sub_reader;
                 this->sub_reader = NULL;
                 this->push_back(next);
@@ -408,14 +408,14 @@ json::reader::push_result json::reader::push_object(const char next)
             switch (next)
             {
             case '}':
-                this->append(this->sub_reader->readout());
+                this->append(this->sub_reader->serialize());
                 delete this->sub_reader;
                 this->sub_reader = NULL;
                 this->push_back(next);
                 this->set_state(OBJECT_CLOSED);
                 return ACCEPTED;
             case ',':
-                this->append(this->sub_reader->readout());
+                this->append(this->sub_reader->serialize());
                 delete this->sub_reader;
                 this->sub_reader = NULL;
                 this->push_back(next);
@@ -627,9 +627,9 @@ json::reader::push_result json::kvp_reader::push(const char next)
     return reader::push(next);
 }
 
-std::string json::kvp_reader::readout() const
+std::string json::kvp_reader::serialize() const
 {
-    return this->_key.readout() + ":" + reader::readout();
+    return this->_key.serialize() + ":" + reader::serialize();
 }
 
 std::string json::parsing::decode_string(const char *input)
@@ -746,7 +746,7 @@ json::parsing::parse_results json::parsing::parse(const char *input)
     }
 
     if(stream.is_valid()) {
-        result.value = stream.readout();
+        result.value = stream.serialize();
         result.type = stream.type();
     }
     result.remainder = index;
@@ -1003,7 +1003,7 @@ json::data::dynamic_data::dynamic_data(const json::reader &input)
 void json::data::dynamic_data::operator=(const json::reader &input)
 {
     if(!input.is_valid()) throw std::invalid_argument(__FUNCTION__);
-    this->__value = input.readout();
+    this->__value = input.serialize();
 }
 
 json::jtype::jtype json::data::dynamic_data::type() const
@@ -1155,7 +1155,7 @@ void json::data::dynamic_data::set(const jarray value)
 
 json::data::dynamic_data::operator json::jarray() const
 {
-    return jarray::parse(this->__value);
+    return json::jarray::parse(this->__value);
 }
 
 void json::data::dynamic_data::set(const jobject value)
@@ -1163,9 +1163,9 @@ void json::data::dynamic_data::set(const jobject value)
     this->__value = value.as_string();
 }
 
-json::data::dynamic_data::operator jobject() const
+json::data::dynamic_data::operator json::jobject() const
 {
-    return jobject::parse(this->__value);
+    return json::jobject::parse(this->__value);
 }
 
 bool json::data::dynamic_data::is_true() const
