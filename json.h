@@ -80,8 +80,16 @@ namespace json
 		jtype detect(const char *input);
 	}
 
+	/*! \brief Interface for data containers */
+	class data_container
+	{
+	public:
+		virtual jtype::jtype type() const = 0;
+		virtual std::string serialize() const = 0;
+	};
+
 	/*! \brief Value reader */
-	class reader : protected std::string
+	class reader : public data_container, protected std::string
 	{
 	public:
 		enum push_result
@@ -147,7 +155,7 @@ namespace json
 		* \returns A string containing the stored value
 		* \warning This method will return the value regardless of the state of the value, valid or not
 		*/
-		inline virtual std::string readout() const { return *this; }
+		inline virtual std::string serialize() const { return *this; }
 
 		/*! \brief Destructor */
 		inline virtual ~reader() { this->clear(); }
@@ -283,7 +291,7 @@ namespace json
 		*
 		* \returns JSON-encoded key and JSON-encoded value seperated by a colon (:)
 		*/
-		virtual std::string readout() const;
+		virtual std::string serialize() const;
 
 	private:
 		/*! \brief Reader for reading the key */
@@ -314,10 +322,9 @@ namespace json
 			virtual void set(format); 					\
 			virtual operator format() const;
 
-		class data_interface
+		class data_interface : public data_container
 		{
 		public:
-			virtual jtype::jtype type() const = 0;
 			virtual void set_null() = 0;
 			virtual void set_true() = 0;
 			virtual void set_false() = 0;
@@ -341,7 +348,6 @@ namespace json
 			virtual std::string as_string() const = 0; 
 			virtual jarray as_array() const = 0;
 			virtual jobject as_object() const = 0;
-			virtual std::string serialize() const = 0;
 
 			inline bool is_number() const { return this->type() == jtype::jnumber; }
 			inline bool is_array() const { return this->type() == jtype::jarray; }
@@ -558,10 +564,12 @@ namespace json
 		std::vector<std::string> parse_array(const char *input);
 	}
 
-	class jarray : public std::vector<data::dynamic_data>
+	class jarray : public data_container, public std::vector<data::dynamic_data>
 	{
 	public:
 		inline jarray() : std::vector<data::dynamic_data>() { }
+
+		inline jtype::jtype type() const { return jtype::jarray; }
 
 		template<typename T>
 		jarray& operator=(const std::vector<T> input)
@@ -590,7 +598,7 @@ namespace json
 		static jarray parse(const char *input);
 		static inline jarray parse(const std::string &input) { return jarray::parse(input.c_str()); }
 		std::string as_string() const;
-		inline std::string serialize() const { return this->as_string(); }
+		virtual inline std::string serialize() const { return this->as_string(); }
 		inline operator std::string() const { return this->as_string(); }
 		std::string pretty(unsigned int indent_level = 0) const;
 		template<typename T>
@@ -620,7 +628,7 @@ namespace json
 	 * \example objectarray.cpp
 	 * This is an example of how to handle an array of JSON objects
 	 */
-	class jobject
+	class jobject : public data_container
 	{
 	private:
 		/*! \brief The container used to store the object's data */
@@ -642,6 +650,8 @@ namespace json
 
 		/*! \brief Destructor */
 		virtual ~jobject();
+
+		virtual inline jtype::jtype type() const { return jtype::jobject; }
 
 		/*! \brief Returns the number of entries in the JSON object or array */
 		inline size_t size() const { return this->data.size(); }
@@ -798,6 +808,8 @@ namespace json
 		{
 			return this->operator std::string();
 		}
+
+		virtual inline std::string serialize() const { return this->as_string(); }
 
 		/*! \brief Returns a pretty (multi-line indented) serialzed representation of the object or array
 		 * 

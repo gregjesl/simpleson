@@ -37,7 +37,7 @@ int main(void)
             TEST_EQUAL(stream.push(data_point.input[j]), json::reader::ACCEPTED);
         }
         TEST_EQUAL(stream.type(), data_point.type);
-        TEST_STRING_EQUAL(stream.readout().c_str(), data_point.output);
+        TEST_STRING_EQUAL(stream.serialize().c_str(), data_point.output);
         stream.clear();
     }
 
@@ -52,7 +52,7 @@ int main(void)
         }
         TEST_EQUAL(stream.push(' '), json::reader::REJECTED);
         TEST_EQUAL(stream.type(), json::jtype::jnumber);
-        TEST_STRING_EQUAL(stream.readout().c_str(), data_point);
+        TEST_STRING_EQUAL(stream.serialize().c_str(), data_point);
         stream.clear();
     }
 }
