@@ -657,7 +657,7 @@ namespace json
 		inline size_t size() const { return this->data.size(); }
 
 		/*! \brief Clears the JSON object or array */
-		inline void clear() { this->data.clear(); }
+		void clear();
 
 		void attach(data::link *prox);
 

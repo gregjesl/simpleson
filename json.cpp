@@ -911,6 +911,15 @@ json::jobject::~jobject()
     }
 }
 
+void json::jobject::clear()
+{
+    while(!this->data.empty()) {
+        delete this->data.begin()->second;
+        this->data.erase(this->data.begin());
+    }
+    assert(this->size() == 0);
+}
+
 void json::jobject::attach(json::data::link *prox)
 {
     this->detatch(prox);
