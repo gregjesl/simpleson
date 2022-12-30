@@ -162,7 +162,7 @@ int main(void)
 	TEST_FALSE(retest["boolean"].is_array());
 	TEST_TRUE(retest["boolean"].is_bool());
 	TEST_FALSE(retest["boolean"].is_null());
-	TEST_TRUE(test["boolean"].is_true());
+	TEST_TRUE(test["boolean"].as_bool());
 
 	// Null
 	TEST_TRUE(test.has_key("null"));

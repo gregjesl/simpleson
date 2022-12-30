@@ -47,6 +47,109 @@ const char * FLOAT_FORMAT = "%f";
 /*! \brief Format used for double floating-opint number to string conversion */
 const char * DOUBLE_FORMAT = "%lf";
 
+namespace json
+{
+    /*! \brief Namespace used for JSON parsing functions */
+	namespace parsing
+	{
+		/*! \brief (t)rims (l)eading (w)hite (s)pace
+		 *
+		 * \details Given a string, returns a pointer to the first character that is not white space. Spaces, tabs, and carriage returns are all considered white space. 
+		 * @param start The string to examine
+		 * @return A pointer within the input string that points at the first charactor that is not white space
+		 * \note If the string consists of entirely white space, then the null terminator is returned
+		 * \warning The behavior of this function with string that is not null-terminated is undefined
+		 */
+		const char* tlws(const char *start);
+
+		/*! \brief Decodes a string in JSON format
+		 *
+		 * \details The quotation mark ("), reverse solidus (\), solidus (/), backspace (b), formfeed (f), linefeed (n), carriage return (r), horizontal tab (t), and Unicode character will be unescaped
+		 * @param input A string, encapsulated in quotations ("), potentially containing escaped control characters
+		 * @return A string with control characters un-escaped
+		 * \note This function will strip leading and trailing quotations. 
+		 * @see encode_string
+		 */
+		std::string decode_string(const char * input);
+
+		/*! \brief Encodes a string in JSON format
+		 *
+		 * \details The quotation mark ("), reverse solidus (\), solidus (/), backspace (b), formfeed (f), linefeed (n), carriage return (r), horizontal tab (t), and Unicode character will be escaped
+		 * @param input A string potentially containing control characters
+		 * @return A string that has all control characters escaped with a reverse solidus (\)
+		 * \note This function will add leading and trailing quotations. 
+		 * @see decode_string
+		 */
+		std::string encode_string(const char *input);
+
+		/*! \brief Structure for capturing the results of parsing */
+		struct parse_results
+		{
+			/*! \brief The type of value encountered while parsing */
+			jtype::jtype type; 
+
+			/*! \brief The parsed value encountered */
+			std::string value; 
+
+			/*! \brief A pointer to the first character after the parsed value */
+			const char *remainder;
+		};
+
+		/*! \brief Parses the first value encountered in a JSON string
+		 *
+		 * @param input The string to be parsed
+		 * @return Details regarding the first value encountered 
+		 * \exception json::parsing_error Exception thrown when the input is not valid JSON
+		 */
+		parse_results parse(const char *input);
+		
+		/*! \brief Template for reading a numeric value 
+		 * 
+		 * @tparam T The C data type the input will be convered to
+		 * @param input The string to conver to a number
+		 * @param format The format to use when converting the string to a number
+		 * @return The numeric value contained by the input
+		 */
+		template <typename T>
+		T get_number(const char *input, const char* format)
+		{
+			T result;
+			std::sscanf(input, format, &result);
+			return result;
+		}
+
+		/*! \brief Converts a number to a string
+		 * 
+		 * @tparam The C data type of the number to be converted
+		 * @param number A reference to the number to be converted
+		 * @param format The format to be used when converting the number
+		 * @return A string representation of the input number
+		 */ 
+		template <typename T>
+		std::string get_number_string(const T &number, const char *format)
+		{
+			std::vector<char> cstr(6);
+			int remainder = std::snprintf(&cstr[0], cstr.size(), format, number);
+			if(remainder < 0) {
+				return std::string();
+			} else if(remainder >= (int)cstr.size()) {
+				cstr.resize(remainder + 1);
+				std::snprintf(&cstr[0], cstr.size(), format, number);
+			}
+			std::string result(&cstr[0]);
+			return result;
+		}
+
+		/*! \brief Parses a JSON array
+		 *
+		 * \details Converts a serialized JSON array into a vector of the values in the array
+		 * @param input The serialized JSON array
+		 * @return A vector containing each element of the array with each element being serialized JSON
+		 */
+		std::vector<std::string> parse_array(const char *input);
+	}
+}
+
 const char* json::parsing::tlws(const char *input)
 {
     const char *output = input;
@@ -90,6 +193,16 @@ json::jtype::jtype json::jtype::detect(const char *input)
 {
     const char *start = json::parsing::tlws(input);
     return json::jtype::peek(*start);
+}
+
+json::data_source::operator json::jarray() const
+{
+    throw std::bad_cast();
+}
+
+json::data_source::operator json::jobject() const
+{
+    throw std::bad_cast();
 }
 
 void json::reader::clear()
@@ -914,7 +1027,6 @@ json::jobject::~jobject()
 void json::jobject::clear()
 {
     while(!this->data.empty()) {
-        delete this->data.begin()->second;
         this->data.erase(this->data.begin());
     }
     assert(this->size() == 0);
@@ -1411,7 +1523,7 @@ void json::proxy::set(const json::jobject value)
     set_obj_value(this->__parent.parent(), this->__key, value);
 }
 
-bool json::proxy::is_true() const
+bool json::proxy::as_bool() const
 {
     if(!this->__parent.attached() || this->__key.size() == 0) throw std::runtime_error(__FUNCTION__);
     const json::jobject *parent = this->__parent.parent();
@@ -1475,3 +1587,203 @@ std::string json::proxy::serialize() const
     if(!parent->has_key(this->__key)) throw json::invalid_key(this->__key);
     return parent->get(this->__key);
 }
+
+class null_data_source : public json::data_source
+{
+public:
+    inline null_data_source() { }
+    inline virtual json::jtype::jtype type() const { return json::jtype::jnull; }
+    inline virtual std::string serialize() const { return std::string("null"); }
+    inline virtual std::string as_string() const { return this->serialize(); }
+};
+
+json::dynamic_data::dynamic_data()
+    : __data(new null_data_source())
+{ }
+
+template<typename T>
+class number_data_source : public json::data_source
+{
+public:
+    virtual json::jtype::jtype type() const { return json::jtype::jnumber; }
+    number_data_source(const T value) : __value(value) { }
+    virtual operator uint8_t() const { return (uint8_t)this->__value; }
+    virtual operator int8_t() const { return (int8_t)this->__value; }
+    virtual operator uint16_t() const { return (uint16_t)this->__value; }
+    virtual operator int16_t() const { return (int16_t)this->__value; }
+    virtual operator uint32_t() const { return (uint32_t)this->__value; }
+    virtual operator int32_t() const { return (int32_t)this->__value; }
+    virtual operator uint64_t() const { return (uint64_t)this->__value; }
+    virtual operator int64_t() const { return (int64_t)this->__value; }
+    virtual operator float() const { return (float)this->__value; }
+    virtual operator double() const { return (double)this->__value; }
+    virtual operator long double() const { return (long double)this->__value; }
+    virtual bool as_bool() const { return (bool)this->__value; }
+    virtual std::string serialize() const { return this->as_string(); }
+protected:
+    const T __value;
+};
+
+template<typename T>
+class integer_data_source : public number_data_source<T>
+{
+public:
+    integer_data_source(const T value) : number_data_source<T>(value) { }
+    virtual std::string as_string() const
+    {
+        if(this->__value == 0) return "0";
+        T remainder = this->__value;
+        std::string result;
+        while(remainder != 0)
+        {
+            const char digit = (remainder % 10) + '0';
+            result.insert(result.begin(), digit);
+            remainder /= 10;
+        }
+        if(this->__value < 0) result.insert(result.begin(), '-');
+        return result;
+    }
+};
+
+template<typename T>
+class floating_point_data_source : public number_data_source<T>
+{
+public:
+    floating_point_data_source(const T value, const char * format) 
+        : number_data_source<T>(value),
+        __format(format),
+        __cache(NULL)
+    { }
+
+    floating_point_data_source(const std::string &value, const char * format)
+        : number_data_source<T>(0),
+        __format(format),
+        __cache(NULL)
+    {
+        std::sscanf(value.c_str(), format, &this->__value);
+        this->__cache = new std::string(value);
+    }
+
+    virtual ~floating_point_data_source()
+    {
+        if(this->__cache != NULL) delete this->__cache;
+    }
+    virtual std::string as_string() const
+    {
+        if(this->__cache != NULL) return *this->__cache;
+        std::vector<char> cstr(6);
+        int remainder = std::snprintf(&cstr[0], cstr.size(), this->__format, this->__value);
+        if(remainder < 0) {
+            throw std::bad_cast();
+        } else if(remainder >= (int)cstr.size()) {
+            cstr.resize(remainder + 1);
+            std::snprintf(&cstr[0], cstr.size(), this->__format, this->__value);
+        }
+        return std::string(&cstr[0]);
+    }
+private:
+    const char * __format;
+    const std::string * __cache;
+};
+
+json::dynamic_data::dynamic_data(const uint8_t value)
+    : __data(new integer_data_source<uint8_t>(value))
+{ }
+
+json::dynamic_data::dynamic_data(const int8_t value)
+    : __data(new integer_data_source<int8_t>(value))
+{ }
+
+json::dynamic_data::dynamic_data(const uint16_t value)
+    : __data(new integer_data_source<uint16_t>(value))
+{ }
+
+json::dynamic_data::dynamic_data(const int16_t value)
+    : __data(new integer_data_source<int16_t>(value))
+{ }
+
+json::dynamic_data::dynamic_data(const uint32_t value)
+    : __data(new integer_data_source<uint32_t>(value))
+{ }
+
+json::dynamic_data::dynamic_data(const int32_t value)
+    : __data(new integer_data_source<int32_t>(value))
+{ }
+
+json::dynamic_data::dynamic_data(const uint64_t value)
+    : __data(new integer_data_source<uint64_t>(value))
+{ }
+
+json::dynamic_data::dynamic_data(const int64_t value)
+    : __data(new integer_data_source<int64_t>(value))
+{ }
+
+json::dynamic_data::dynamic_data(const float value)
+    : __data(new floating_point_data_source<float>(value, FLOAT_FORMAT))
+{ }
+
+json::dynamic_data::dynamic_data(const double value)
+    : __data(new floating_point_data_source<double>(value, DOUBLE_FORMAT))
+{ }
+
+class string_data_source : public json::data_source, private std::string
+{
+public:
+    inline string_data_source(const std::string &value) : std::string(value) { }
+    inline virtual json::jtype::jtype type() const { return json::jtype::jstring; }
+    inline virtual std::string serialize() const { return json::parsing::encode_string(this->c_str()); }
+    inline virtual std::string as_string() const { return *this; }
+};
+
+json::dynamic_data::dynamic_data(const std::string &value)
+    : __data(new string_data_source(value))
+{ }
+
+template<typename T, json::jtype::jtype __type>
+class json_data_source : public json::data_source
+{
+public:
+    inline json_data_source(const T &value) : __data(value) { }
+    inline virtual json::jtype::jtype type() const { return __type; }
+    inline virtual std::string serialize() const { return this->__data.serialize(); }
+    inline virtual std::string as_string() const { return this->__data.serialize(); }
+    inline virtual operator T() const { return this->__data; }
+private:
+    T __data;
+};
+
+json::dynamic_data::dynamic_data(const json::jarray &value)
+    : __data(new json_data_source<json::jarray, json::jtype::jarray>(value))
+{ }
+
+json::dynamic_data::dynamic_data(const json::jobject &value)
+    : __data(new json_data_source<json::jobject, json::jtype::jobject>(value))
+{ }
+
+class bool_data_source : public json::data_source
+{
+public:
+    inline bool_data_source(const bool value) : __data(value) { }
+    inline virtual json::jtype::jtype type() const { return json::jtype::jbool; }
+    virtual std::string serialize() const { return this->__data ? std::string("true") : std::string("false"); }
+
+    virtual inline operator uint8_t() const { return (uint8_t)this->__data; }
+    virtual inline operator int8_t() const { return (int8_t)this->__data; }
+    virtual inline operator uint16_t() const { return (uint16_t)this->__data; }
+    virtual inline operator int16_t() const { return (int16_t)this->__data; }
+    virtual inline operator uint32_t() const { return (uint32_t)this->__data; }
+    virtual inline operator int32_t() const { return (int32_t)this->__data; }
+    virtual inline operator uint64_t() const { return (uint64_t)this->__data; }
+    virtual inline operator int64_t() const { return (int64_t)this->__data; }
+    virtual inline operator float() const { return (float)this->__data; }
+    virtual inline operator double() const { return (double)this->__data; }
+
+    virtual inline std::string as_string() const { return this->serialize(); }
+    virtual bool as_bool() const { return this->__data; }
+private:
+    bool __data;
+};
+
+json::dynamic_data::dynamic_data(const bool value)
+    : __data(new bool_data_source(value))
+{ }

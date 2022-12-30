@@ -80,16 +80,95 @@ namespace json
 		jtype detect(const char *input);
 	}
 
-	/*! \brief Interface for data containers */
-	class data_container
+	/*! \brief Interface for sources of JSON data */
+	class data_source
 	{
 	public:
 		virtual jtype::jtype type() const = 0;
 		virtual std::string serialize() const = 0;
+
+		virtual inline operator uint8_t() const { throw std::bad_cast(); }
+		virtual inline operator int8_t() const { throw std::bad_cast(); }
+		virtual inline operator uint16_t() const { throw std::bad_cast(); }
+		virtual inline operator int16_t() const { throw std::bad_cast(); }
+		virtual inline operator uint32_t() const { throw std::bad_cast(); }
+		virtual inline operator int32_t() const { throw std::bad_cast(); }
+		virtual inline operator uint64_t() const { throw std::bad_cast(); }
+		virtual inline operator int64_t() const { throw std::bad_cast(); }
+		virtual inline operator float() const { throw std::bad_cast(); }
+		virtual inline operator double() const { throw std::bad_cast(); }
+		// virtual inline operator long double() const { throw std::bad_cast(); }
+		virtual operator jarray() const; // Inline definition not possible due to forward declaration
+		virtual inline operator jobject() const; // Inline definition not possible due to forward declaration
+
+		template<typename T>
+		T cast() const { return this->operator T; }
+		virtual std::string as_string() const = 0;
+		virtual bool as_bool() const { throw std::bad_cast(); }
+
+		inline bool is_string() const { return this->type() == jtype::jstring; }
+		inline bool is_number() const { return this->type() == jtype::jnumber; }
+		inline bool is_object() const { return this->type() == jtype::jobject; }
+		inline bool is_array() const { return this->type() == jtype::jarray; }
+		inline bool is_bool() const { return this->type() == jtype::jbool; }
+		inline bool is_null() const { return this->type() == jtype::jnull; }
+	};
+
+	class dynamic_data
+	{
+	public:
+		dynamic_data();
+		// dynamic_data(const dynamic_data &other);
+		dynamic_data(const uint8_t value);
+		dynamic_data(const int8_t value);
+		dynamic_data(const uint16_t value);
+		dynamic_data(const int16_t value);
+		dynamic_data(const uint32_t value);
+		dynamic_data(const int32_t value);
+		dynamic_data(const uint64_t value);
+		dynamic_data(const int64_t value);
+		dynamic_data(const float value);
+		dynamic_data(const double value);
+		dynamic_data(const std::string &value);
+		dynamic_data(const json::jarray &value);
+		dynamic_data(const json::jobject &value);
+		dynamic_data(const bool value);
+	private:
+		json::data_source * __data;
+	};
+
+	/*! \brief Interface for streaming input data */
+	class jistream
+	{
+	public:
+		enum push_result
+		{
+			ACCEPTED, ///< The character was valid. Reading should continue. 
+			REJECTED, ///< The character was not valid. Reading should stop.
+			WHITESPACE ///< The character was whitespace. Reading should continue but the whitespace was not stored. 
+		};
+
+		/*!\ brief Pushes a value to the back of the reader 
+		*
+		* @param next the value to be pushed
+		* \returns `ACCEPTED` if the value was added to the reader, `WHITESPACE` if the input was whitespace that was not stored, and `REJECTED` is the input was invalid for the value type
+		*/
+		virtual push_result push(const char next) = 0;
+		virtual bool is_closed() const = 0;
+		inline size_t read(const char *buffer, const size_t buf_len)
+		{
+			for(size_t i = 0; i < buf_len; i++)
+				if(this->push(buffer[i]) == REJECTED) return i;
+			return buf_len;
+		}
+		inline size_t read(const std::string &input)
+		{
+			return this->read(input.c_str(), input.length());
+		}
 	};
 
 	/*! \brief Value reader */
-	class reader : public data_container, protected std::string
+	class reader : protected std::string
 	{
 	public:
 		enum push_result
@@ -304,16 +383,6 @@ namespace json
 	/*! \brief Namespace for handling JSON data */
 	namespace data
 	{
-		typedef enum data_format_enum
-		{
-			UINT8,
-			INT8
-		} data_format_t;
-
-		#define ABSTRACT_SET_AND_GET(format) 		\
-			virtual void set(format) = 0; 			\
-			virtual operator format() const = 0;
-
 		#define SET_AND_GET(format) 				\
 			virtual void set(format); 				\
 			virtual operator format() const;
@@ -322,41 +391,7 @@ namespace json
 			virtual void set(format); 					\
 			virtual operator format() const;
 
-		class data_interface : public data_container
-		{
-		public:
-			virtual void set_null() = 0;
-			virtual void set_true() = 0;
-			virtual void set_false() = 0;
-
-			ABSTRACT_SET_AND_GET(uint8_t);
-			ABSTRACT_SET_AND_GET(int8_t);
-			ABSTRACT_SET_AND_GET(uint16_t);
-			ABSTRACT_SET_AND_GET(int16_t);
-			ABSTRACT_SET_AND_GET(uint32_t);
-			ABSTRACT_SET_AND_GET(int32_t);
-			ABSTRACT_SET_AND_GET(uint64_t);
-			ABSTRACT_SET_AND_GET(int64_t);
-			ABSTRACT_SET_AND_GET(float);
-			ABSTRACT_SET_AND_GET(double);
-			ABSTRACT_SET_AND_GET(std::string);
-			ABSTRACT_SET_AND_GET(jarray);
-			ABSTRACT_SET_AND_GET(jobject);
-
-			virtual bool is_true() const = 0;
-			virtual bool is_null() const = 0;
-			virtual std::string as_string() const = 0; 
-			virtual jarray as_array() const = 0;
-			virtual jobject as_object() const = 0;
-
-			inline bool is_number() const { return this->type() == jtype::jnumber; }
-			inline bool is_array() const { return this->type() == jtype::jarray; }
-			inline bool is_bool() const { return this->type() == jtype::jbool; }
-			inline bool is_object() const { return this->type() == jtype::jobject; }
-			inline bool is_string() const { return this->type() == jtype::jstring; }
-		};
-
-		class dynamic_data : public data_interface
+		class dynamic_data : public data_source
 		{
 		public:
 			inline dynamic_data() { }
@@ -422,7 +457,7 @@ namespace json
 		};
 	}
 
-	class proxy : public data::data_interface
+	class proxy : public data_source
 	{
 	public:
 		proxy();
@@ -453,7 +488,7 @@ namespace json
 		template<typename T>
 		inline proxy& operator=(const T input) { this->set(input); return *this; }
 
-		virtual bool is_true() const;
+		virtual bool as_bool() const;
 		virtual bool is_null() const;
 		virtual std::string as_string() const; 
 		virtual jarray as_array() const;
@@ -464,107 +499,7 @@ namespace json
 		std::string __key;
 	};
 
-	/*! \brief Namespace used for JSON parsing functions */
-	namespace parsing
-	{
-		/*! \brief (t)rims (l)eading (w)hite (s)pace
-		 *
-		 * \details Given a string, returns a pointer to the first character that is not white space. Spaces, tabs, and carriage returns are all considered white space. 
-		 * @param start The string to examine
-		 * @return A pointer within the input string that points at the first charactor that is not white space
-		 * \note If the string consists of entirely white space, then the null terminator is returned
-		 * \warning The behavior of this function with string that is not null-terminated is undefined
-		 */
-		const char* tlws(const char *start);
-
-		/*! \brief Decodes a string in JSON format
-		 *
-		 * \details The quotation mark ("), reverse solidus (\), solidus (/), backspace (b), formfeed (f), linefeed (n), carriage return (r), horizontal tab (t), and Unicode character will be unescaped
-		 * @param input A string, encapsulated in quotations ("), potentially containing escaped control characters
-		 * @return A string with control characters un-escaped
-		 * \note This function will strip leading and trailing quotations. 
-		 * @see encode_string
-		 */
-		std::string decode_string(const char * input);
-
-		/*! \brief Encodes a string in JSON format
-		 *
-		 * \details The quotation mark ("), reverse solidus (\), solidus (/), backspace (b), formfeed (f), linefeed (n), carriage return (r), horizontal tab (t), and Unicode character will be escaped
-		 * @param input A string potentially containing control characters
-		 * @return A string that has all control characters escaped with a reverse solidus (\)
-		 * \note This function will add leading and trailing quotations. 
-		 * @see decode_string
-		 */
-		std::string encode_string(const char *input);
-
-		/*! \brief Structure for capturing the results of parsing */
-		struct parse_results
-		{
-			/*! \brief The type of value encountered while parsing */
-			jtype::jtype type; 
-
-			/*! \brief The parsed value encountered */
-			std::string value; 
-
-			/*! \brief A pointer to the first character after the parsed value */
-			const char *remainder;
-		};
-
-		/*! \brief Parses the first value encountered in a JSON string
-		 *
-		 * @param input The string to be parsed
-		 * @return Details regarding the first value encountered 
-		 * \exception json::parsing_error Exception thrown when the input is not valid JSON
-		 */
-		parse_results parse(const char *input);
-		
-		/*! \brief Template for reading a numeric value 
-		 * 
-		 * @tparam T The C data type the input will be convered to
-		 * @param input The string to conver to a number
-		 * @param format The format to use when converting the string to a number
-		 * @return The numeric value contained by the input
-		 */
-		template <typename T>
-		T get_number(const char *input, const char* format)
-		{
-			T result;
-			std::sscanf(input, format, &result);
-			return result;
-		}
-
-		/*! \brief Converts a number to a string
-		 * 
-		 * @tparam The C data type of the number to be converted
-		 * @param number A reference to the number to be converted
-		 * @param format The format to be used when converting the number
-		 * @return A string representation of the input number
-		 */ 
-		template <typename T>
-		std::string get_number_string(const T &number, const char *format)
-		{
-			std::vector<char> cstr(6);
-			int remainder = std::snprintf(&cstr[0], cstr.size(), format, number);
-			if(remainder < 0) {
-				return std::string();
-			} else if(remainder >= (int)cstr.size()) {
-				cstr.resize(remainder + 1);
-				std::snprintf(&cstr[0], cstr.size(), format, number);
-			}
-			std::string result(&cstr[0]);
-			return result;
-		}
-
-		/*! \brief Parses a JSON array
-		 *
-		 * \details Converts a serialized JSON array into a vector of the values in the array
-		 * @param input The serialized JSON array
-		 * @return A vector containing each element of the array with each element being serialized JSON
-		 */
-		std::vector<std::string> parse_array(const char *input);
-	}
-
-	class jarray : public data_container, public std::vector<data::dynamic_data>
+	class jarray : public std::vector<data::dynamic_data>
 	{
 	public:
 		inline jarray() : std::vector<data::dynamic_data>() { }
@@ -628,7 +563,7 @@ namespace json
 	 * \example objectarray.cpp
 	 * This is an example of how to handle an array of JSON objects
 	 */
-	class jobject : public data_container
+	class jobject
 	{
 	private:
 		/*! \brief The container used to store the object's data */
