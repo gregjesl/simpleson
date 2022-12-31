@@ -26,7 +26,7 @@ int main(void)
 	TEST_STRING_EQUAL(result.at(6).as_string().c_str(), "[\"hello\",\"world\"]");
 	TEST_STRING_EQUAL(result.at(7).as_string().c_str(), "[]");
 
-	TEST_TRUE(result.at(3).is_true());
+	TEST_TRUE(result.at(3).as_bool());
 	TEST_TRUE(result.at(4).is_null());
 	TEST_TRUE(result.at(5).as_array().at(0).as_object() == json::jobject::parse("{\"key\":\"value\"}"));
 

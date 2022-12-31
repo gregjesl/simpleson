@@ -84,6 +84,7 @@ namespace json
 	class data_source
 	{
 	public:
+		virtual inline ~data_source() { }
 		virtual jtype::jtype type() const = 0;
 		virtual std::string serialize() const = 0;
 
@@ -101,6 +102,9 @@ namespace json
 		virtual operator jarray() const; // Inline definition not possible due to forward declaration
 		virtual inline operator jobject() const; // Inline definition not possible due to forward declaration
 
+		jarray as_array() const;
+		jobject as_object() const;
+
 		template<typename T>
 		T cast() const { return this->operator T; }
 		virtual std::string as_string() const = 0;
@@ -114,11 +118,26 @@ namespace json
 		inline bool is_null() const { return this->type() == jtype::jnull; }
 	};
 
-	class dynamic_data
+	class data_reference
+	{
+	public:
+		data_reference();
+		data_reference(data_source *source);
+		data_reference(const data_reference &other);
+		virtual ~data_reference();
+		data_reference& operator=(const data_reference &other);
+		const data_source & ref() const { return *this->__source; }
+	private:
+		void dereference();
+		data_source * __source;
+		size_t * __refs;
+	};
+
+	class dynamic_data : public data_source
 	{
 	public:
 		dynamic_data();
-		// dynamic_data(const dynamic_data &other);
+		dynamic_data(const data_reference &other);
 		dynamic_data(const uint8_t value);
 		dynamic_data(const int8_t value);
 		dynamic_data(const uint16_t value);
@@ -133,8 +152,47 @@ namespace json
 		dynamic_data(const json::jarray &value);
 		dynamic_data(const json::jobject &value);
 		dynamic_data(const bool value);
+
+		virtual inline jtype::jtype type() const { return this->__data.ref().type(); }
+		virtual std::string serialize() const;
+
+		virtual inline operator uint8_t() const { return this->__data.ref().operator uint8_t(); }
+		virtual inline operator int8_t() const { return this->__data.ref().operator int8_t(); }
+		virtual inline operator uint16_t() const { return this->__data.ref().operator uint16_t(); }
+		virtual inline operator int16_t() const { return this->__data.ref().operator uint16_t(); }
+		virtual inline operator uint32_t() const { return this->__data.ref().operator uint32_t(); }
+		virtual inline operator int32_t() const { return this->__data.ref().operator uint32_t(); }
+		virtual inline operator uint64_t() const { return this->__data.ref().operator uint64_t(); }
+		virtual inline operator int64_t() const { return this->__data.ref().operator uint64_t(); }
+		virtual inline operator float() const { return this->__data.ref().operator float(); }
+		virtual inline operator double() const { return this->__data.ref().operator double(); }
+		virtual operator jarray() const;
+		virtual operator jobject() const;
+		virtual inline std::string as_string() const { return this->__data.ref().as_string(); }
+		virtual bool as_bool() const { return this->__data.ref().as_bool(); }
+
+		dynamic_data& operator=(const data_reference &other);
+
+		dynamic_data& operator=(const uint8_t value);
+		dynamic_data& operator=(const int8_t value);
+		dynamic_data& operator=(const uint16_t value);
+		dynamic_data& operator=(const int16_t value);
+		dynamic_data& operator=(const uint32_t value);
+		dynamic_data& operator=(const int32_t value);
+		dynamic_data& operator=(const uint64_t value);
+		dynamic_data& operator=(const int64_t value);
+		dynamic_data& operator=(const float value);
+		dynamic_data& operator=(const double value);
+		dynamic_data& operator=(const std::string &value);
+		dynamic_data& operator=(const jarray &value);
+		dynamic_data& operator=(const jobject &value);
+		void set_true();
+		void set_false();
+		void set_null();
+
 	private:
-		json::data_source * __data;
+		json::data_reference __data;
+		json::dynamic_data& reassign(data_source * seed);
 	};
 
 	/*! \brief Interface for streaming input data */
@@ -147,6 +205,8 @@ namespace json
 			REJECTED, ///< The character was not valid. Reading should stop.
 			WHITESPACE ///< The character was whitespace. Reading should continue but the whitespace was not stored. 
 		};
+
+		virtual jtype::jtype type() const = 0;
 
 		/*!\ brief Pushes a value to the back of the reader 
 		*
@@ -165,6 +225,8 @@ namespace json
 		{
 			return this->read(input.c_str(), input.length());
 		}
+
+		virtual json::data_source * finalize() = 0;
 	};
 
 	/*! \brief Value reader */
@@ -235,6 +297,8 @@ namespace json
 		* \warning This method will return the value regardless of the state of the value, valid or not
 		*/
 		inline virtual std::string serialize() const { return *this; }
+
+		json::data_reference emit() const;
 
 		/*! \brief Destructor */
 		inline virtual ~reader() { this->clear(); }
@@ -391,54 +455,6 @@ namespace json
 			virtual void set(format); 					\
 			virtual operator format() const;
 
-		class dynamic_data : public data_source
-		{
-		public:
-			inline dynamic_data() { }
-			dynamic_data(const reader &input);
-			inline dynamic_data(const dynamic_data &other)
-				: __value(other.__value)
-			{ }
-
-			virtual inline ~dynamic_data() { }
-
-			void operator= (const reader &input);
-			inline void operator=(const dynamic_data &other) { this->__value = other.__value; }
-
-			virtual jtype::jtype type() const;
-			virtual void set_null();
-			virtual void set_true();
-			virtual void set_false();
-
-			SET_AND_GET_AND_CONSTRUCT(dynamic_data, uint8_t);
-			SET_AND_GET_AND_CONSTRUCT(dynamic_data, int8_t);
-			SET_AND_GET_AND_CONSTRUCT(dynamic_data, uint16_t);
-			SET_AND_GET_AND_CONSTRUCT(dynamic_data, int16_t);
-			SET_AND_GET_AND_CONSTRUCT(dynamic_data, uint32_t);
-			SET_AND_GET_AND_CONSTRUCT(dynamic_data, int32_t);
-			SET_AND_GET_AND_CONSTRUCT(dynamic_data, uint64_t);
-			SET_AND_GET_AND_CONSTRUCT(dynamic_data, int64_t);
-			SET_AND_GET_AND_CONSTRUCT(dynamic_data, float);
-			SET_AND_GET_AND_CONSTRUCT(dynamic_data, double);
-			SET_AND_GET_AND_CONSTRUCT(dynamic_data, std::string);
-			SET_AND_GET_AND_CONSTRUCT(dynamic_data, jarray);
-			SET_AND_GET_AND_CONSTRUCT(dynamic_data, jobject);
-
-			template<typename T>
-			dynamic_data(const T value) { this->set(value); }
-
-			virtual std::string as_string() const; 
-			virtual json::jarray as_array() const;
-			virtual json::jobject as_object() const;
-
-			virtual bool is_true() const;
-			virtual bool is_null() const;
-
-			virtual std::string serialize() const;
-		private:
-			std::string __value;
-		};
-
 		class link
 		{
 		public:
@@ -499,10 +515,10 @@ namespace json
 		std::string __key;
 	};
 
-	class jarray : public std::vector<data::dynamic_data>
+	class jarray : public std::vector<json::dynamic_data>
 	{
 	public:
-		inline jarray() : std::vector<data::dynamic_data>() { }
+		inline jarray() : std::vector<json::dynamic_data>() { }
 
 		inline jtype::jtype type() const { return jtype::jarray; }
 
@@ -536,6 +552,16 @@ namespace json
 		virtual inline std::string serialize() const { return this->as_string(); }
 		inline operator std::string() const { return this->as_string(); }
 		std::string pretty(unsigned int indent_level = 0) const;
+		inline operator std::vector<std::string>() const
+		{
+			std::vector<std::string> result;
+			for(size_t i = 0; i < this->size(); i++)
+			{
+				result.push_back(this->at(i).as_string());
+			}
+			return result;
+		}
+
 		template<typename T>
 		operator std::vector<T>() const
 		{

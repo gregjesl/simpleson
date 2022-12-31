@@ -205,6 +205,16 @@ json::data_source::operator json::jobject() const
     throw std::bad_cast();
 }
 
+json::jarray json::data_source::as_array() const
+{
+    return this->operator json::jarray();
+}
+
+json::jobject json::data_source::as_object() const
+{
+    return this->operator json::jobject();
+}
+
 void json::reader::clear()
 {
     std::string::clear(); 
@@ -930,8 +940,8 @@ json::jarray json::jarray::parse(const char *input)
     // Verify a valid read
     if(!entry.is_valid()) throw std::invalid_argument(__FUNCTION__);
 
-    // Store the value
-    result.push_back(entry);
+     // Store the value
+    result.push_back(entry.emit());
 
     // Clear the reader
     entry.clear();
@@ -1116,39 +1126,6 @@ std::string json::jobject::pretty(unsigned int indent_level) const
     return result;
 }
 
-json::data::dynamic_data::dynamic_data(const json::reader &input)
-{
-    this->operator=(input);
-}
-
-void json::data::dynamic_data::operator=(const json::reader &input)
-{
-    if(!input.is_valid()) throw std::invalid_argument(__FUNCTION__);
-    this->__value = input.serialize();
-}
-
-json::jtype::jtype json::data::dynamic_data::type() const
-{
-    return this->__value.length() > 0 ? 
-        json::jtype::peek(this->__value.at(0)) : 
-        json::jtype::not_valid;
-}
-
-void json::data::dynamic_data::set_null()
-{
-    this->__value = "null";
-}
-
-void json::data::dynamic_data::set_true()
-{
-    this->__value = "true";
-}
-
-void json::data::dynamic_data::set_false()
-{
-    this->__value = "false";
-}
-
 template<typename T>
 T cast_uint(const std::string &input, const T max_value)
 {
@@ -1206,127 +1183,6 @@ std::string from_int(const T input)
         result.insert(result.begin(), '-');
     }
     return result;
-}
-
-#define DYNAMIC_UINT_SOURCE(format, max)                    \
-void json::data::dynamic_data::set(const format value)      \
-{                                                           \
-    this->__value = from_uint(value);                       \
-}                                                           \
-                                                            \
-json::data::dynamic_data::operator format() const           \
-{                                                           \
-    return cast_uint<format>(this->__value, max);           \
-}
-
-#define DYNAMIC_INT_SOURCE(format, min, max)                \
-void json::data::dynamic_data::set(const format value)      \
-{                                                           \
-    this->__value = from_int(value);                        \
-}                                                           \
-                                                            \
-json::data::dynamic_data::operator format() const           \
-{                                                           \
-    return cast_int<format>(this->__value, min, max);       \
-}
-
-DYNAMIC_UINT_SOURCE(uint8_t, UINT8_MAX);
-DYNAMIC_INT_SOURCE(int8_t, INT8_MIN, INT8_MAX);
-DYNAMIC_UINT_SOURCE(uint16_t, UINT16_MAX);
-DYNAMIC_INT_SOURCE(int16_t, INT16_MIN, INT16_MAX);
-DYNAMIC_UINT_SOURCE(uint32_t, UINT32_MAX);
-DYNAMIC_INT_SOURCE(int32_t, INT32_MIN, INT32_MAX);
-DYNAMIC_UINT_SOURCE(uint64_t, UINT64_MAX);
-DYNAMIC_INT_SOURCE(int64_t, INT64_MIN, INT64_MAX);
-
-void json::data::dynamic_data::set(const float value)
-{
-    this->__value = json::parsing::get_number_string<float>(value, FLOAT_FORMAT);
-}
-
-json::data::dynamic_data::operator float() const
-{
-    return json::parsing::get_number<float>(this->__value.c_str(), FLOAT_FORMAT);
-}
-
-void json::data::dynamic_data::set(const double value)
-{
-    this->__value = json::parsing::get_number_string<double>(value, DOUBLE_FORMAT);
-}
-
-json::data::dynamic_data::operator double() const
-{
-    return json::parsing::get_number<float>(this->__value.c_str(), DOUBLE_FORMAT);
-}
-
-void json::data::dynamic_data::set(const std::string value)
-{
-    this->__value = json::parsing::encode_string(value.c_str());
-}
-
-json::data::dynamic_data::operator std::string() const
-{
-    return json::parsing::decode_string(this->__value.c_str());
-}
-
-void json::data::dynamic_data::set(const jarray value)
-{
-    this->__value = value.serialize();
-}
-
-json::data::dynamic_data::operator json::jarray() const
-{
-    return json::jarray::parse(this->__value);
-}
-
-void json::data::dynamic_data::set(const jobject value)
-{
-    this->__value = value.as_string();
-}
-
-json::data::dynamic_data::operator json::jobject() const
-{
-    return json::jobject::parse(this->__value);
-}
-
-bool json::data::dynamic_data::is_true() const
-{
-    return this->__value == "true";
-}
-
-bool json::data::dynamic_data::is_null() const
-{
-    return this->__value == "null";
-}
-
-std::string json::data::dynamic_data::as_string() const
-{
-    assert(this->__value.size() > 0);
-    switch (this->type())
-    {
-    case json::jtype::not_valid:
-        throw std::bad_cast();
-    case json::jtype::jstring:
-        return json::parsing::decode_string(this->__value.c_str());    
-    default:
-        return this->__value;
-    }
-}
-
-std::string json::data::dynamic_data::serialize() const
-{
-    assert(this->__value.size() > 0);
-    return this->__value;
-}
-
-json::jarray json::data::dynamic_data::as_array() const
-{
-    return json::jarray::parse(this->__value);
-}
-
-json::jobject json::data::dynamic_data::as_object() const
-{
-    return json::jobject::parse(this->__value);
 }
 
 json::data::link::link(json::jobject *parent)
@@ -1464,15 +1320,14 @@ T get_obj_value(const json::jobject * obj, const std::string &key)
     if(!obj->has_key(key)) throw json::invalid_key(key);
     const std::string raw = obj->get(key);
     const json::reader stream = json::reader::parse(raw);
-    return json::data::dynamic_data(stream);
+    return json::dynamic_data(stream.emit());
 }
 
 template<typename T>
 void set_obj_value(json::jobject * obj, const std::string &key, const T input)
 {
     if(obj == NULL || key.size() == 0) throw std::runtime_error(__FUNCTION__);
-    json::data::dynamic_data value;
-    value = input;
+    const json::dynamic_data value(input);
     obj->set(key, value.serialize());
 }
 
@@ -1601,6 +1456,10 @@ json::dynamic_data::dynamic_data()
     : __data(new null_data_source())
 { }
 
+json::dynamic_data::dynamic_data(const json::data_reference &other)
+    : __data(other)
+{ }
+
 template<typename T>
 class number_data_source : public json::data_source
 {
@@ -1655,6 +1514,12 @@ public:
         __cache(NULL)
     { }
 
+    floating_point_data_source(const floating_point_data_source &other)
+        : number_data_source<T>(other.__value),
+        __format(other.__format),
+        __cache(other.__cache)
+    { }
+
     floating_point_data_source(const std::string &value, const char * format)
         : number_data_source<T>(0),
         __format(format),
@@ -1668,6 +1533,7 @@ public:
     {
         if(this->__cache != NULL) delete this->__cache;
     }
+
     virtual std::string as_string() const
     {
         if(this->__cache != NULL) return *this->__cache;
@@ -1766,6 +1632,7 @@ public:
     inline bool_data_source(const bool value) : __data(value) { }
     inline virtual json::jtype::jtype type() const { return json::jtype::jbool; }
     virtual std::string serialize() const { return this->__data ? std::string("true") : std::string("false"); }
+    inline virtual json::data_source * copy() const { return new bool_data_source(this->__data); }
 
     virtual inline operator uint8_t() const { return (uint8_t)this->__data; }
     virtual inline operator int8_t() const { return (int8_t)this->__data; }
@@ -1787,3 +1654,235 @@ private:
 json::dynamic_data::dynamic_data(const bool value)
     : __data(new bool_data_source(value))
 { }
+
+std::string json::dynamic_data::serialize() const
+{
+    assert(this->__data.ref().type() != json::jtype::not_valid);
+    return this->__data.ref().type() == json::jtype::jstring ? 
+        json::parsing::encode_string(this->__data.ref().as_string().c_str())
+        :
+        this->__data.ref().as_string();
+}
+
+json::dynamic_data::operator json::jarray() const
+{
+    return this->__data.ref().operator json::jarray();
+}
+
+json::dynamic_data::operator json::jobject() const
+{
+    return this->__data.ref().operator json::jobject();
+}
+
+json::dynamic_data& json::dynamic_data::operator=(const json::data_reference &other)
+{
+    this->__data = other; 
+    return *this;
+}
+
+json::dynamic_data& json::dynamic_data::reassign(json::data_source * other)
+{
+    this->__data = json::data_reference(other);
+    return *this;
+}
+
+json::dynamic_data& json::dynamic_data::operator=(const uint8_t value)
+{
+    return this->reassign(new integer_data_source<uint8_t>(value));
+}
+
+json::dynamic_data& json::dynamic_data::operator=(const int8_t value)
+{
+    return this->reassign(new integer_data_source<int8_t>(value));
+}
+
+json::dynamic_data& json::dynamic_data::operator=(const uint16_t value)
+{
+    return this->reassign(new integer_data_source<uint16_t>(value));
+}
+
+json::dynamic_data& json::dynamic_data::operator=(const int16_t value)
+{
+    return this->reassign(new integer_data_source<int16_t>(value));
+}
+
+json::dynamic_data& json::dynamic_data::operator=(const uint32_t value)
+{
+    return this->reassign(new integer_data_source<uint32_t>(value));
+}
+
+json::dynamic_data& json::dynamic_data::operator=(const int32_t value)
+{
+    return this->reassign(new integer_data_source<int32_t>(value));
+}
+
+json::dynamic_data& json::dynamic_data::operator=(const uint64_t value)
+{
+    return this->reassign(new integer_data_source<uint64_t>(value));
+}
+
+json::dynamic_data& json::dynamic_data::operator=(const int64_t value)
+{
+    return this->reassign(new integer_data_source<int64_t>(value));
+}
+
+json::dynamic_data& json::dynamic_data::operator=(const float value)
+{
+    return this->reassign(new floating_point_data_source<float>(value, FLOAT_FORMAT));
+}
+
+json::dynamic_data& json::dynamic_data::operator=(const double value)
+{
+    return this->reassign(new floating_point_data_source<double>(value, DOUBLE_FORMAT));
+}
+
+json::dynamic_data& json::dynamic_data::operator=(const std::string &value)
+{
+    return this->reassign(new string_data_source(value));
+}
+
+json::dynamic_data& json::dynamic_data::operator=(const json::jarray &value)
+{
+    return this->reassign(new json_data_source<json::jarray, json::jtype::jarray>(value));
+}
+
+json::dynamic_data& json::dynamic_data::operator=(const json::jobject &value)
+{
+    return this->reassign(new json_data_source<json::jobject, json::jtype::jobject>(value));
+}
+
+void json::dynamic_data::set_true()
+{
+    this->reassign(new bool_data_source(true));
+}
+
+void json::dynamic_data::set_false()
+{
+    this->reassign(new bool_data_source(false));
+}
+
+void json::dynamic_data::set_null()
+{
+    this->reassign(new null_data_source());
+}
+
+bool is_integer_string(const std::string &input)
+{
+    assert(input.size() > 0);
+    size_t start = 0;
+    if(input.at(0) == '-')
+    {
+        start++;
+        assert(input.size() > 1);
+    }
+    for(size_t i = start; i < input.size(); i++)
+    {
+        if(!IS_DIGIT(input.at(i))) return false;
+    }
+    return true;
+}
+
+json::data_source * number_from_string(const std::string &input)
+{
+    assert(input.size() > 0);
+    if(is_integer_string(input)) {
+        // TODO: Check for overflow
+        
+        if(input.at(0) == '-') {
+            assert(input.size() > 1);
+            int64_t value = input.at(1) - '0';
+            value *= -1;
+            for(size_t i = 1; i < input.size(); i++) {
+                value *= 10;
+                const int64_t next = input.at(i) - '0';
+                if(value - next > value) throw std::overflow_error("int too large");
+                value -= next;
+            }
+            return new integer_data_source<int64_t>(value);
+        }
+
+        uint64_t value = input.at(0) - '0';
+        for(size_t i = 1; i < input.size(); i++) {
+            value *= 10;
+            const uint64_t next = input.at(i) - '0';
+            if(value + next < value) throw std::overflow_error("int too large");
+            value += next;
+        }
+        return new integer_data_source<uint64_t>(value);
+    }
+
+    // Input is a float
+    return new floating_point_data_source<double>(input, DOUBLE_FORMAT);
+}
+
+json::data_reference json::reader::emit() const
+{
+    switch (this->type())
+    {
+    case jtype::jarray:
+        return json::data_reference(
+            new json_data_source<json::jarray, json::jtype::jarray>(json::jarray::parse(this->serialize())));
+    case jtype::jbool:
+        return json::data_reference(
+            new bool_data_source(this->serialize().at(0) == 't'));
+    case jtype::jnull:
+        return json::data_reference(
+            new null_data_source());
+    case jtype::jnumber:
+        return json::data_reference(number_from_string(*this));
+    case jtype::jobject:
+        return json::data_reference(
+            new json_data_source<json::jobject, json::jtype::jobject>(json::jobject::parse(this->serialize())));
+    case jtype::jstring:
+        return json::data_reference(
+            new string_data_source(json::parsing::decode_string(this->serialize().c_str())));
+    case jtype::not_valid:
+        throw std::bad_cast();
+    }
+    assert(false);
+}
+
+json::data_reference::data_reference()
+    : __source(new null_data_source()),
+    __refs(new size_t(1))
+{ }
+
+json::data_reference::data_reference(json::data_source *source)
+    : __source(source),
+    __refs(new size_t(1))
+{ }
+
+json::data_reference::data_reference(const json::data_reference &other)
+    : __source(other.__source),
+    __refs(other.__refs)
+{
+    assert(*this->__refs > 0);
+    (*this->__refs)++;
+}
+
+json::data_reference::~data_reference()
+{
+    this->dereference();
+}
+
+json::data_reference& json::data_reference::operator=(const json::data_reference &other)
+{
+    if(this == &other && this->__source == other.__source) return *this;
+
+    this->dereference();
+    this->__source = other.__source;
+    this->__refs = other.__refs;
+    assert(*this->__refs > 0);
+    (*this->__refs)++;
+    return *this;
+}
+
+void json::data_reference::dereference()
+{
+    if(*this->__refs == 1) {
+        delete this->__source;
+        delete this->__refs;
+    } else {
+        (*this->__refs)--;
+    }
+}
