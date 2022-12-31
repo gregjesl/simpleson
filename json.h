@@ -145,18 +145,20 @@ namespace json
 		virtual operator jobject() const; // Inline definition not possible due to forward declaration
 		virtual inline std::string as_string() const { return this->__source->as_string(); }
 		virtual inline bool as_bool() const { return this->__source->as_bool(); }
-	private:
+	protected:
 		/*! \brief Constructs a data referernce from a source
 		 *
 		 * \note This constructor must be kept private when data_referernce derives from \ref data_source, otherwise there is ambiguity between the copy constructor and this constructor. 
 		 */
 		data_reference(data_source * source);
+		void reassign(data_source * source);
+	private:
 		void detatch();
 		data_source * __source;
 		size_t * __refs;
 	};
 
-	class dynamic_data : public data_source
+	class dynamic_data : public data_reference
 	{
 	public:
 		dynamic_data();
@@ -176,24 +178,6 @@ namespace json
 		dynamic_data(const json::jobject &value);
 		dynamic_data(const bool value);
 
-		virtual inline jtype::jtype type() const { return this->__data.ref().type(); }
-		virtual std::string serialize() const;
-
-		virtual inline operator uint8_t() const { return this->__data.ref().operator uint8_t(); }
-		virtual inline operator int8_t() const { return this->__data.ref().operator int8_t(); }
-		virtual inline operator uint16_t() const { return this->__data.ref().operator uint16_t(); }
-		virtual inline operator int16_t() const { return this->__data.ref().operator uint16_t(); }
-		virtual inline operator uint32_t() const { return this->__data.ref().operator uint32_t(); }
-		virtual inline operator int32_t() const { return this->__data.ref().operator uint32_t(); }
-		virtual inline operator uint64_t() const { return this->__data.ref().operator uint64_t(); }
-		virtual inline operator int64_t() const { return this->__data.ref().operator uint64_t(); }
-		virtual inline operator float() const { return this->__data.ref().operator float(); }
-		virtual inline operator double() const { return this->__data.ref().operator double(); }
-		virtual operator jarray() const;
-		virtual operator jobject() const;
-		virtual inline std::string as_string() const { return this->__data.ref().as_string(); }
-		virtual bool as_bool() const { return this->__data.ref().as_bool(); }
-
 		dynamic_data& operator=(const data_reference &other);
 
 		dynamic_data& operator=(const uint8_t value);
@@ -212,10 +196,6 @@ namespace json
 		void set_true();
 		void set_false();
 		void set_null();
-
-	private:
-		json::data_reference __data;
-		json::dynamic_data& reassign(data_source * seed);
 	};
 
 	/*! \brief Interface for streaming input data */
