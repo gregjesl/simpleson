@@ -215,6 +215,16 @@ json::jobject json::data_source::as_object() const
     return this->operator json::jobject();
 }
 
+json::data_reference::operator json::jarray() const
+{
+    return this->__source->operator json::jarray();
+}
+
+json::data_reference::operator json::jobject() const
+{
+    return this->__source->operator json::jobject();
+}
+
 void json::reader::clear()
 {
     std::string::clear(); 
@@ -1453,7 +1463,7 @@ public:
 };
 
 json::dynamic_data::dynamic_data()
-    : __data(new null_data_source())
+    : __data(json::data_reference::create(new null_data_source()))
 { }
 
 json::dynamic_data::dynamic_data(const json::data_reference &other)
@@ -1553,43 +1563,43 @@ private:
 };
 
 json::dynamic_data::dynamic_data(const uint8_t value)
-    : __data(new integer_data_source<uint8_t>(value))
+    : __data(json::data_reference::create(new integer_data_source<uint8_t>(value)))
 { }
 
 json::dynamic_data::dynamic_data(const int8_t value)
-    : __data(new integer_data_source<int8_t>(value))
+    : __data(json::data_reference::create(new integer_data_source<int8_t>(value)))
 { }
 
 json::dynamic_data::dynamic_data(const uint16_t value)
-    : __data(new integer_data_source<uint16_t>(value))
+    : __data(json::data_reference::create((new integer_data_source<uint16_t>(value))))
 { }
 
 json::dynamic_data::dynamic_data(const int16_t value)
-    : __data(new integer_data_source<int16_t>(value))
+    : __data(json::data_reference::create(new integer_data_source<int16_t>(value)))
 { }
 
 json::dynamic_data::dynamic_data(const uint32_t value)
-    : __data(new integer_data_source<uint32_t>(value))
+    : __data(json::data_reference::create(new integer_data_source<uint32_t>(value)))
 { }
 
 json::dynamic_data::dynamic_data(const int32_t value)
-    : __data(new integer_data_source<int32_t>(value))
+    : __data(json::data_reference::create(new integer_data_source<int32_t>(value)))
 { }
 
 json::dynamic_data::dynamic_data(const uint64_t value)
-    : __data(new integer_data_source<uint64_t>(value))
+    : __data(json::data_reference::create(new integer_data_source<uint64_t>(value)))
 { }
 
 json::dynamic_data::dynamic_data(const int64_t value)
-    : __data(new integer_data_source<int64_t>(value))
+    : __data(json::data_reference::create(new integer_data_source<int64_t>(value)))
 { }
 
 json::dynamic_data::dynamic_data(const float value)
-    : __data(new floating_point_data_source<float>(value, FLOAT_FORMAT))
+    : __data(json::data_reference::create(new floating_point_data_source<float>(value, FLOAT_FORMAT)))
 { }
 
 json::dynamic_data::dynamic_data(const double value)
-    : __data(new floating_point_data_source<double>(value, DOUBLE_FORMAT))
+    : __data(json::data_reference::create(new floating_point_data_source<double>(value, DOUBLE_FORMAT)))
 { }
 
 class string_data_source : public json::data_source, private std::string
@@ -1602,7 +1612,7 @@ public:
 };
 
 json::dynamic_data::dynamic_data(const std::string &value)
-    : __data(new string_data_source(value))
+    : __data(json::data_reference::create(new string_data_source(value)))
 { }
 
 template<typename T, json::jtype::jtype __type>
@@ -1619,11 +1629,11 @@ private:
 };
 
 json::dynamic_data::dynamic_data(const json::jarray &value)
-    : __data(new json_data_source<json::jarray, json::jtype::jarray>(value))
+    : __data(json::data_reference::create(new json_data_source<json::jarray, json::jtype::jarray>(value)))
 { }
 
 json::dynamic_data::dynamic_data(const json::jobject &value)
-    : __data(new json_data_source<json::jobject, json::jtype::jobject>(value))
+    : __data(json::data_reference::create(new json_data_source<json::jobject, json::jtype::jobject>(value)))
 { }
 
 class bool_data_source : public json::data_source
@@ -1652,7 +1662,7 @@ private:
 };
 
 json::dynamic_data::dynamic_data(const bool value)
-    : __data(new bool_data_source(value))
+    : __data(json::data_reference::create(new bool_data_source(value)))
 { }
 
 std::string json::dynamic_data::serialize() const
@@ -1682,7 +1692,7 @@ json::dynamic_data& json::dynamic_data::operator=(const json::data_reference &ot
 
 json::dynamic_data& json::dynamic_data::reassign(json::data_source * other)
 {
-    this->__data = json::data_reference(other);
+    this->__data = json::data_reference::create(other);
     return *this;
 }
 
@@ -1820,26 +1830,31 @@ json::data_reference json::reader::emit() const
     switch (this->type())
     {
     case jtype::jarray:
-        return json::data_reference(
+        return json::data_reference::create(
             new json_data_source<json::jarray, json::jtype::jarray>(json::jarray::parse(this->serialize())));
     case jtype::jbool:
-        return json::data_reference(
+        return json::data_reference::create(
             new bool_data_source(this->serialize().at(0) == 't'));
     case jtype::jnull:
-        return json::data_reference(
+        return json::data_reference::create(
             new null_data_source());
     case jtype::jnumber:
-        return json::data_reference(number_from_string(*this));
+        return json::data_reference::create(number_from_string(*this));
     case jtype::jobject:
-        return json::data_reference(
+        return json::data_reference::create(
             new json_data_source<json::jobject, json::jtype::jobject>(json::jobject::parse(this->serialize())));
     case jtype::jstring:
-        return json::data_reference(
+        return json::data_reference::create(
             new string_data_source(json::parsing::decode_string(this->serialize().c_str())));
     case jtype::not_valid:
         throw std::bad_cast();
     }
     assert(false);
+}
+
+json::data_reference json::data_reference::create(json::data_source * source)
+{
+    return json::data_reference(source);
 }
 
 json::data_reference::data_reference()
@@ -1862,14 +1877,14 @@ json::data_reference::data_reference(const json::data_reference &other)
 
 json::data_reference::~data_reference()
 {
-    this->dereference();
+    this->detatch();
 }
 
 json::data_reference& json::data_reference::operator=(const json::data_reference &other)
 {
     if(this == &other && this->__source == other.__source) return *this;
 
-    this->dereference();
+    this->detatch();
     this->__source = other.__source;
     this->__refs = other.__refs;
     assert(*this->__refs > 0);
@@ -1877,7 +1892,7 @@ json::data_reference& json::data_reference::operator=(const json::data_reference
     return *this;
 }
 
-void json::data_reference::dereference()
+void json::data_reference::detatch()
 {
     if(*this->__refs == 1) {
         delete this->__source;

@@ -100,7 +100,7 @@ namespace json
 		virtual inline operator double() const { throw std::bad_cast(); }
 		// virtual inline operator long double() const { throw std::bad_cast(); }
 		virtual operator jarray() const; // Inline definition not possible due to forward declaration
-		virtual inline operator jobject() const; // Inline definition not possible due to forward declaration
+		virtual operator jobject() const; // Inline definition not possible due to forward declaration
 
 		jarray as_array() const;
 		jobject as_object() const;
@@ -118,17 +118,40 @@ namespace json
 		inline bool is_null() const { return this->type() == jtype::jnull; }
 	};
 
-	class data_reference
+	class data_reference : public data_source
 	{
 	public:
+		static data_reference create(data_source * input);
 		data_reference();
-		data_reference(data_source *source);
 		data_reference(const data_reference &other);
 		virtual ~data_reference();
 		data_reference& operator=(const data_reference &other);
 		const data_source & ref() const { return *this->__source; }
+
+		virtual inline jtype::jtype type() const { return this->__source->type(); }
+		virtual inline std::string serialize() const { return this->__source->serialize(); }
+
+		virtual inline operator uint8_t() const { return this->__source->operator uint8_t(); }
+		virtual inline operator int8_t() const { return this->__source->operator int8_t(); }
+		virtual inline operator uint16_t() const { return this->__source->operator uint16_t(); }
+		virtual inline operator int16_t() const { return this->__source->operator int16_t(); }
+		virtual inline operator uint32_t() const { return this->__source->operator uint32_t(); }
+		virtual inline operator int32_t() const { return this->__source->operator int32_t(); }
+		virtual inline operator uint64_t() const { return this->__source->operator uint64_t(); }
+		virtual inline operator int64_t() const { return this->__source->operator int64_t(); }
+		virtual inline operator float() const { return this->__source->operator float(); }
+		virtual inline operator double() const { return this->__source->operator double(); }
+		virtual operator jarray() const; // Inline definition not possible due to forward declaration
+		virtual operator jobject() const; // Inline definition not possible due to forward declaration
+		virtual inline std::string as_string() const { return this->__source->as_string(); }
+		virtual inline bool as_bool() const { return this->__source->as_bool(); }
 	private:
-		void dereference();
+		/*! \brief Constructs a data referernce from a source
+		 *
+		 * \note This constructor must be kept private when data_referernce derives from \ref data_source, otherwise there is ambiguity between the copy constructor and this constructor. 
+		 */
+		data_reference(data_source * source);
+		void detatch();
 		data_source * __source;
 		size_t * __refs;
 	};
