@@ -189,12 +189,6 @@ json::jtype::jtype json::jtype::peek(const char input)
     }
 }
 
-json::jtype::jtype json::jtype::detect(const char *input)
-{
-    const char *start = json::parsing::tlws(input);
-    return json::jtype::peek(*start);
-}
-
 json::data_source::operator json::jarray() const
 {
     throw std::bad_cast();

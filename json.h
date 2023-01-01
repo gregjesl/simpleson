@@ -69,15 +69,6 @@ namespace json
 		};
 
 		jtype peek(const char input);
-
-		/*! \brief Geven a string, determines the type of value the string contains
-		 * 
-		 * @param input The string to be tested
-		 * @return The type of JSON value encountered
-		 * 
-		 * \note The function will only determine the type of the first value encountered in the string. 
-		 */
-		jtype detect(const char *input);
 	}
 
 	/*! \brief Interface for sources of JSON data */

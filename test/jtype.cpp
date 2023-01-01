@@ -3,29 +3,30 @@
 
 int main(void)
 {
-	// Empty
-	TEST_EQUAL(json::jtype::detect(""), json::jtype::not_valid);
-
-	// Stirng
-	TEST_EQUAL(json::jtype::detect(" \"test string\""), json::jtype::jstring);
+	// String
+	TEST_EQUAL(json::jtype::peek('"'), json::jtype::jstring);
 
 	// Number
-	TEST_EQUAL(json::jtype::detect(" 123"), json::jtype::jnumber);
-	TEST_EQUAL(json::jtype::detect(" -123"), json::jtype::jnumber);
+	for(char i = '0'; i <= '9'; i++) {
+		TEST_EQUAL(json::jtype::peek(i), json::jtype::jnumber);
+	}
+	TEST_EQUAL(json::jtype::peek('-'), json::jtype::jnumber);
 
 	// Object
-	TEST_EQUAL(json::jtype::detect(" {\"hello\":\"world\""), json::jtype::jobject);
+	TEST_EQUAL(json::jtype::peek('{'), json::jtype::jobject);
 
 	// Array
-	TEST_EQUAL(json::jtype::detect(" [1,2,3]"), json::jtype::jarray);
+	TEST_EQUAL(json::jtype::peek('['), json::jtype::jarray);
 
 	// Bool
-	TEST_EQUAL(json::jtype::detect(" true"), json::jtype::jbool);
-	TEST_EQUAL(json::jtype::detect(" false"), json::jtype::jbool);
+	TEST_EQUAL(json::jtype::peek('t'), json::jtype::jbool);
+	TEST_EQUAL(json::jtype::peek('f'), json::jtype::jbool);
 
 	// Null
-	TEST_EQUAL(json::jtype::detect(" null"), json::jtype::jnull);
+	TEST_EQUAL(json::jtype::peek('n'), json::jtype::jnull);
 
 	// Invalid
-	TEST_EQUAL(json::jtype::detect(" abc"), json::jtype::not_valid);
+	for(char i = 'A'; i <= 'Z'; i++) {
+		TEST_EQUAL(json::jtype::peek(i), json::jtype::not_valid);
+	}
 }
