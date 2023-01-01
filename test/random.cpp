@@ -8,7 +8,7 @@ const char *test_data =
 "	\"guid\" : \"d05c39f8-e92d-4911-b727-fe3d78b6de6c\","
 "	\"isActive\" : true,"
 "	\"balance\" : \"$3,801.20\","
-"	\"picture\" : \"http://placehold.it/32x32\","
+"	\"picture\" : \"http:\\/\\/placehold.it\\/32x32\","
 "	\"age\" : 38,"
 "	\"eyeColor\" : \"blue\","
 "	\"name\" : \"Garrett Beck\","

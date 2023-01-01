@@ -30,14 +30,14 @@ int main(void)
     printf("Input: \n%s\n", input);
 
 	json::jobject result = json::jobject::parse(input);
-	TEST_STRING_EQUAL(result.get("number").c_str(), "123.456");
-	TEST_STRING_EQUAL(result.get("string").c_str(), "\"hello \\\" world\"");
-	TEST_STRING_EQUAL(result.get("array").c_str(), "[1,2,3]");
-	TEST_STRING_EQUAL(result.get("boolean").c_str(), "true");
-	TEST_STRING_EQUAL(result.get("isnull").c_str(), "null");
-	TEST_STRING_EQUAL(result.get("objarray").c_str(), "[{\"key\":\"value\"}]");
-	TEST_STRING_EQUAL(result.get("strarray").c_str(), "[\"hello\",\"world\"]");
-	TEST_STRING_EQUAL(result.get("emptyarray").c_str(), "[]");
+	TEST_STRING_EQUAL(result.get("number").as_string().c_str(), "123.456");
+	TEST_STRING_EQUAL(result.get("string").as_string().c_str(), "hello \" world");
+	TEST_STRING_EQUAL(result.get("array").as_string().c_str(), "[1,2,3]");
+	TEST_STRING_EQUAL(result.get("boolean").as_string().c_str(), "true");
+	TEST_STRING_EQUAL(result.get("isnull").as_string().c_str(), "null");
+	TEST_STRING_EQUAL(result.get("objarray").as_string().c_str(), "[{\"key\":\"value\"}]");
+	TEST_STRING_EQUAL(result.get("strarray").as_string().c_str(), "[\"hello\",\"world\"]");
+	TEST_STRING_EQUAL(result.get("emptyarray").as_string().c_str(), "[]");
 	TEST_TRUE(result.has_key("number"));
 	TEST_FALSE(result.has_key("nokey"));
 	TEST_STRING_EQUAL(result["objarray"].as_array().at(0).as_object()["key"].as_string().c_str(), "value");

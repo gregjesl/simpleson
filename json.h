@@ -152,6 +152,7 @@ namespace json
 		 */
 		data_reference(data_source * source);
 		void reassign(data_source * source);
+		virtual inline void on_reassignment() { }
 	private:
 		void detatch();
 		data_source * __source;
@@ -190,9 +191,11 @@ namespace json
 		dynamic_data& operator=(const int64_t value);
 		dynamic_data& operator=(const float value);
 		dynamic_data& operator=(const double value);
-		dynamic_data& operator=(const std::string &value);
 		dynamic_data& operator=(const jarray &value);
 		dynamic_data& operator=(const jobject &value);
+		void set_string(const std::string &value);
+		dynamic_data& operator=(const std::string &value);
+		dynamic_data& operator=(const char * value);
 		void set_true();
 		void set_false();
 		void set_null();
@@ -447,77 +450,6 @@ namespace json
 		bool _colon_read;
 	};
 
-	/*! \brief Namespace for handling JSON data */
-	namespace data
-	{
-		#define SET_AND_GET(format) 				\
-			virtual void set(format); 				\
-			virtual operator format() const;
-
-		#define SET_AND_GET_AND_CONSTRUCT(obj, format)	\
-			virtual void set(format); 					\
-			virtual operator format() const;
-
-		class link
-		{
-		public:
-			inline link() : __parent(NULL) { }
-			link(const link &other);
-			link(jobject *parent);
-			link& operator= (const link &other);
-			virtual inline ~link() { this->detatch(); }
-			inline jobject * parent() const { return this->__parent; }
-			inline operator jobject* () const { return this->parent(); }
-			inline bool attached() const { return this->__parent != NULL; }
-			void detatch();
-		private:
-			void attach();
-			jobject * __parent;
-		};
-	}
-
-	class proxy : public data_source
-	{
-	public:
-		proxy();
-		proxy(const proxy &other);
-		proxy(jobject *parent, const std::string key);
-		proxy(jobject *parent, const char *string);
-		proxy& operator=(const proxy &other);
-
-		virtual jtype::jtype type() const;
-		virtual void set_null();
-		virtual void set_true();
-		virtual void set_false();
-
-		SET_AND_GET(uint8_t);
-		SET_AND_GET(int8_t);
-		SET_AND_GET(uint16_t);
-		SET_AND_GET(int16_t);
-		SET_AND_GET(uint32_t);
-		SET_AND_GET(int32_t);
-		SET_AND_GET(uint64_t);
-		SET_AND_GET(int64_t);
-		SET_AND_GET(float);
-		SET_AND_GET(double);
-		SET_AND_GET(std::string);
-		SET_AND_GET(jarray);
-		SET_AND_GET(jobject);
-
-		template<typename T>
-		inline proxy& operator=(const T input) { this->set(input); return *this; }
-
-		virtual bool as_bool() const;
-		virtual bool is_null() const;
-		virtual std::string as_string() const; 
-		virtual jarray as_array() const;
-		virtual jobject as_object() const;
-		virtual std::string serialize() const;
-	private:
-		data::link __parent;
-		std::string __key;
-	};
-
 	class jarray : public std::vector<json::dynamic_data>
 	{
 	public:
@@ -577,8 +509,34 @@ namespace json
 		}
 	};
 
-	typedef std::pair<std::string, std::string> kvp;
-	typedef std::map<std::string, std::string> jmap;
+	class proxy : public dynamic_data
+	{
+	public:
+		proxy();
+		proxy(const proxy &other);
+		proxy(jobject &parent, const std::string key);
+		proxy(jobject &parent, const char *string);
+		proxy& operator=(const proxy &other);
+		proxy& operator=(const jarray &other);
+		proxy& operator=(const jobject &other);
+		template<typename T>
+		proxy& operator=(const T value) { dynamic_data::operator=(value); return *this;}
+		template<typename T>
+		proxy& operator=(const std::vector<T> value)
+		{
+			jarray result;
+			result = value;
+			dynamic_data::operator=(result);
+			return *this;
+		}
+	protected:
+		jobject *__parent;
+		std::string __key;
+		virtual void on_reassignment();
+	};
+
+	typedef std::pair<std::string, json::data_reference> kvp;
+	typedef std::map<std::string, json::data_reference> jmap;
 
 	/*! \class jobject
 	 * \brief The class used for manipulating JSON objects and arrays
@@ -592,40 +550,27 @@ namespace json
 	 * \example objectarray.cpp
 	 * This is an example of how to handle an array of JSON objects
 	 */
-	class jobject
+	class jobject : private jmap
 	{
-	private:
-		/*! \brief The container used to store the object's data */
-		jmap data;
-
-		std::list<data::link*> __proxies;
-
 	public:
 		/*! \brief Default constructor
 		 */
-		inline jobject() { }
+		inline jobject() : jmap() { }
 
 		/*! \brief Copy constructor */
 		inline jobject(const jobject &other)
-			: data(other.data)
-		{ 
-			// Do not copy proxies
-		}
+			: jmap(other)
+		{ }
 
-		/*! \brief Destructor */
-		virtual ~jobject();
+		virtual inline ~jobject() { }
 
 		virtual inline jtype::jtype type() const { return jtype::jobject; }
 
 		/*! \brief Returns the number of entries in the JSON object or array */
-		inline size_t size() const { return this->data.size(); }
+		using jmap::size;
 
 		/*! \brief Clears the JSON object or array */
-		void clear();
-
-		void attach(data::link *prox);
-
-		void detatch(data::link *prox);
+		using jmap::clear;
 
 		/*! \brief Comparison operator
 		 *
@@ -637,40 +582,13 @@ namespace json
 		bool operator!= (const json::jobject other) const { return ((std::string)(*this)) != (std::string)other; }
 
 		/*! \brief Assignment operator */
-		inline jobject& operator=(const jobject rhs)
+		inline jobject& operator=(const jobject &rhs)
 		{
-			this->data = rhs.data;
+			jmap::operator=(rhs);
 			return *this;
 		}
 
-		/*! \brief Appends a key-value pair to a JSON object
-		 *
-		 * \exception json::parsing_error Thrown if the key-value is incompatable with the existing object (object/array mismatch)
-		 */
-		jobject& operator+=(const kvp& other)
-		{
-			this->data.insert(other);
-			return *this;
-		}
-
-		/*! \brief Appends one JSON object to another */
-		jobject& operator+=(const jobject& other)
-		{
-			for (json::jmap::const_iterator it = other.data.begin(); it != other.data.end(); ++it)
-			{
-				if(this->has_key(it->first)) throw json::invalid_key("Key conflict");
-				this->data.insert(kvp(it->first, it->second));
-			}
-			return *this;
-		}
-
-		/*! \brief Merges two JSON objects */
-		jobject operator+(jobject& other)
-		{
-			jobject result = *this;
-			result += other;
-			return result;
-		}
+		using jmap::insert;
 
 		/*! \brief Parses a serialized JSON string
 		 *
@@ -713,7 +631,7 @@ namespace json
 		 */
 		inline bool has_key(const std::string &key) const
 		{
-			return this->data.find(key) != this->data.end();
+			return this->find(key) != this->end();
 		}
 
 		/*! \brief Returns a list of the object's keys
@@ -729,7 +647,7 @@ namespace json
 		 * @param value The value for the entry
 		 * \exception json::invalid_key Exception thrown if the object actually represents a JSON array
 		 */
-		void set(const std::string &key, const std::string &value);
+		void set(const std::string &key, const data_reference &value);
 
 		/*! \brief Returns the serialized value associated with a key
 		 * 
@@ -737,10 +655,10 @@ namespace json
 		 * @return A serialized representation of the value associated with the key
 		 * \exception json::invalid_key Exception thrown if the key does not exist in the object or the object actually represents a JSON array
 		 */
-		inline std::string get(const std::string &key) const
+		inline const json::data_reference get(const std::string &key) const
 		{
-			std::map<std::string, std::string>::const_iterator it = this->data.find(key);
-			if(it == this->data.end()) throw json::invalid_key(key);
+			jmap::const_iterator it = this->find(key);
+			if(it == this->end()) return json::dynamic_data();
 			return it->second;
 		}
 
@@ -757,9 +675,9 @@ namespace json
 		 * @return A proxy for the value paired with the key
 		 * \exception json::invalid_key Exception thrown if the object is actually a JSON array
 		 */
-		inline virtual proxy operator[](const std::string key)
+		inline proxy operator[](const std::string &key)
 		{
-			return json::proxy(this, key);
+			return json::proxy(*this, key);
 		}
 
 		/*! \see json::jobject::as_string() */

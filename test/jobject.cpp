@@ -31,14 +31,14 @@ int main(void)
 	TEST_CONTAINS(keys, "emptyarray");
 
 	// Test individual entries
-	TEST_STRING_EQUAL(result.get("number").c_str(), "123.456");
-	TEST_STRING_EQUAL(result.get("string").c_str(), "\"hello \\\" world\"");
-	TEST_STRING_EQUAL(result.get("array").c_str(), "[1,2,3]");
-	TEST_STRING_EQUAL(result.get("boolean").c_str(), "true");
-	TEST_STRING_EQUAL(result.get("isnull").c_str(), "null");
-	TEST_STRING_EQUAL(result.get("objarray").c_str(), "[{\"key\":\"value\"}]");
-	TEST_STRING_EQUAL(result.get("strarray").c_str(), "[\"hello\",\"world\"]");
-	TEST_STRING_EQUAL(result.get("emptyarray").c_str(), "[]");
+	TEST_STRING_EQUAL(result.get("number").as_string().c_str(), "123.456");
+	TEST_STRING_EQUAL(result.get("string").as_string().c_str(), "hello \" world");
+	TEST_STRING_EQUAL(result.get("array").as_string().c_str(), "[1,2,3]");
+	TEST_STRING_EQUAL(result.get("boolean").as_string().c_str(), "true");
+	TEST_STRING_EQUAL(result.get("isnull").as_string().c_str(), "null");
+	TEST_STRING_EQUAL(result.get("objarray").as_string().c_str(), "[{\"key\":\"value\"}]");
+	TEST_STRING_EQUAL(result.get("strarray").as_string().c_str(), "[\"hello\",\"world\"]");
+	TEST_STRING_EQUAL(result.get("emptyarray").as_string().c_str(), "[]");
 	TEST_TRUE(result.has_key("number"));
 	TEST_FALSE(result.has_key("nokey"));
 	TEST_STRING_EQUAL(result["objarray"].as_array().at(0).as_object()["key"].as_string().c_str(), "value");
@@ -50,10 +50,14 @@ int main(void)
 	TEST_EQUAL(emptyarray.size(), 0);
 
 	// Assign some new values
-	result.set("newvalue", "789");
-	TEST_STRING_EQUAL(result.get("newvalue").c_str(), "789");
-	result.set("array", "[4,5,6]");
-	TEST_STRING_EQUAL(result.get("array").c_str(), "[4,5,6]");
+	result.set("newvalue", json::dynamic_data(789));
+	TEST_STRING_EQUAL(result.get("newvalue").as_string().c_str(), "789");
+	json::jarray arr;
+	arr.push_back(4);
+	arr.push_back(5);
+	arr.push_back(6);
+	result.set("array", json::dynamic_data(arr));
+	TEST_STRING_EQUAL(result.get("array").as_string().c_str(), "[4,5,6]");
 
 	// Create a JSON object
 	json::jobject test;
@@ -70,7 +74,7 @@ int main(void)
 	test["null"].set_null();
 
 	json::jobject subobj;
-	char world[6] = "world";
+	const char world[6] = "world";
 	subobj["hello"] = world;
 	test["subobj"] = subobj;
 
