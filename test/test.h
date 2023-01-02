@@ -75,5 +75,11 @@
         }                                                                      \
         TEST_NOT_EQUAL(__i, haystack.size());                                  \
     }
+#define TEST_ERROR                                                              \
+    {                                                                           \
+        printf("%s[%s:%d]: TEST_ERROR encountered!\n", __FUNCTION__,            \
+                   __FILE__, __LINE__);                                         \
+        exit(1);                                                                \
+    }
 
 #endif

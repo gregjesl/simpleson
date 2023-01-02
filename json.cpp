@@ -1703,3 +1703,174 @@ void json::data_reference::detatch()
         (*this->__refs)--;
     }
 }
+
+json::jobject::istream::istream()
+    : __state(INTIALIZED)
+{ }
+
+json::jistream::push_result json::jobject::istream::push(const char next)
+{
+    switch (this->__state)
+    {
+    case INTIALIZED:
+        if(std::isspace(next)) return json::jistream::WHITESPACE;
+        if(next == '{') {
+            this->on_object_opened();
+            this->__state = AWAITING_NEXT;
+            return json::jistream::ACCEPTED;
+        }
+        return json::jistream::REJECTED;
+        break;
+    case READING_KEY:
+        assert(this->__value.length() > 0);
+        assert(this->__value.type() == json::jtype::jstring);
+        switch (this->__value.push(next))
+        {
+        case ACCEPTED:
+            if(this->__value.is_valid()) {
+                this->__key = this->__value.emit().as_string();
+                this->__value.clear();
+                this->on_key_read(this->__key);
+                this->__state = AWAITING_COLON;
+            }
+            return ACCEPTED;
+            break;
+        case REJECTED:
+            return REJECTED;
+            break;
+        default:
+            throw std::logic_error("Unexpected return");
+            break;
+        }
+    case AWAITING_COLON:
+        if(std::isspace(next)) return WHITESPACE;
+        if(next == ':') {
+            this->__state = AWAITING_VALUE;
+            return ACCEPTED;
+        }
+        return REJECTED;
+    case AWAITING_VALUE:
+        if(std::isspace(next)) return WHITESPACE;
+        switch (this->__value.push(next))
+        {
+        case ACCEPTED:
+            this->__state = READING_VALUE;
+            return ACCEPTED;
+            break;
+        case REJECTED:
+            return REJECTED;
+        default:
+            throw std::logic_error("Unexpected return");
+            break;
+        }
+        break;
+    case READING_VALUE:
+        switch (this->__value.push(next))
+        {
+        case ACCEPTED:
+            return ACCEPTED;
+            break;
+        case WHITESPACE:
+            return WHITESPACE;
+            break;
+        case REJECTED:
+            if(!this->__value.is_valid()) return REJECTED;
+            this->on_value_read(this->__key, this->__value.emit());
+            this->__key.clear();
+            this->__value.clear();
+            break;
+            // Fall-through
+        }
+        // Fall-through
+    case VALUE_READ:
+        if(std::isspace(next)) {
+            this->__state = VALUE_READ;
+            return WHITESPACE;
+        } else if(next == ',') {
+            this->__state = AWAITING_NEXT;
+            return ACCEPTED;
+        } else if(next == '}') {
+            this->on_object_closed();
+            this->__state = CLOSED;
+            return ACCEPTED;
+        }
+        return REJECTED;
+        break;
+    case AWAITING_NEXT:
+        if(std::isspace(next)) return WHITESPACE;
+        if(next == '"') {
+            this->__value.push(next);
+            this->__state = READING_KEY;
+            return ACCEPTED;
+        }
+        return REJECTED;
+    case CLOSED:
+        return REJECTED;
+    }
+}
+
+bool json::jobject::istream::is_valid() const
+{
+    return this->__state == CLOSED;
+}
+
+void json::jobject::istream::reset()
+{
+    this->__key.clear();
+    this->__value.clear();
+    this->__state = INTIALIZED;
+}
+
+json::jobject::parser::parser()
+    : istream(),
+    __obj(NULL)
+{ }
+
+json::jobject::parser::~parser()
+{
+    this->reset();
+}
+
+void json::jobject::parser::reset()
+{
+    json::jobject::istream::reset();
+    if(this->__obj != NULL) {
+        delete this->__obj;
+        this->__obj = NULL;
+    }
+}
+
+const json::jobject& json::jobject::parser::result() const
+{
+    if(!this->is_valid()) throw std::bad_cast();
+    assert(this->__obj != NULL);
+    return *this->__obj;
+}
+
+json::data_reference json::jobject::parser::emit() const
+{
+    if(!this->is_valid()) throw std::bad_cast();
+    assert(this->__obj != NULL);
+    return json::data_reference::create(new json_data_source<json::jobject, json::jtype::jobject>(*this->__obj));
+}
+
+void json::jobject::parser::on_object_opened()
+{
+    this->__obj = new json::jobject();
+}
+
+size_t json::jobject::parser::on_key_read(const std::string &key)
+{
+    // Do nothing
+    return 0;
+}
+
+void json::jobject::parser::on_value_read(const std::string &key, const json::data_reference &value)
+{
+    this->__obj->set(key, value);
+}
+
+void json::jobject::parser::on_object_closed()
+{
+    // Do nothing
+}

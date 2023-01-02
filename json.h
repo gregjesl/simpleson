@@ -211,7 +211,19 @@ namespace json
 		* \returns `ACCEPTED` if the value was added to the reader, `WHITESPACE` if the input was whitespace that was not stored, and `REJECTED` is the input was invalid for the value type
 		*/
 		virtual push_result push(const char next) = 0;
-		virtual bool is_closed() const = 0;
+
+		/*! \brief Operator for streaming data
+		 * 
+		 * \returns `false` if the push was successful, `true` if the pust was rejected. 
+		 * \note Whitespace is considered a successful push. \see push()
+		 */
+		inline bool operator<< (const char next)
+		{
+			return this->push(next) != REJECTED;
+		}
+
+		virtual bool is_valid() const = 0;
+		virtual void reset() = 0;
 		inline size_t read(const char *buffer, const size_t buf_len)
 		{
 			for(size_t i = 0; i < buf_len; i++)
@@ -222,23 +234,20 @@ namespace json
 		{
 			return this->read(input.c_str(), input.length());
 		}
+	};
 
-		virtual json::data_source * finalize() = 0;
+	class data_parser : virtual public jistream
+	{
+	public:
+		virtual data_reference emit() const = 0;
 	};
 
 	/*! \brief Value reader */
-	class reader : protected std::string
+	class reader : public jistream, protected std::string
 	{
 	public:
-		enum push_result
-		{
-			ACCEPTED, ///< The character was valid. Reading should continue. 
-			REJECTED, ///< The character was not valid. Reading should stop.
-			WHITESPACE ///< The character was whitespace. Reading should continue but the whtiespace was not stored. 
-		};
-
 		/*! \brief Reader constructor */
-		inline reader() : std::string(), sub_reader(NULL) { this->clear(); }
+		inline reader() : jistream(), std::string(), sub_reader(NULL) { this->clear(); }
 
 		static reader parse(const std::string input)
 		{
@@ -287,6 +296,7 @@ namespace json
 		* \returns `true` if the stored value is valid, `false` otherwise 
 		*/
 		virtual bool is_valid() const;
+		virtual void reset() { this->clear(); }
 
 		/*! \brief Returns the stored value 
 		*
@@ -690,6 +700,83 @@ namespace json
 		 * @return A "pretty" version of the serizlied object or array
 		 */
 		std::string pretty(unsigned int indent_level = 0) const;
+
+		class istream : virtual public jistream
+		{
+		public:
+			virtual inline jtype::jtype type() const { return json::jtype::jobject; }
+			istream();
+			virtual push_result push(const char next);
+			virtual bool is_valid() const;
+			virtual void reset();
+		protected:
+			virtual void on_object_opened() = 0;
+
+			/*! \brief Callback for key read
+			 * 
+			 * \param key They key that has been read
+			 * \returns The number of bytes to read before characters are discarded. Every excess character will result in on_char_discarded() to be called. 
+			 * 			 
+			 * Returning 0 from this function and implementing a custom value reader through on_char_discarded() is potential approach for handling large payloads, such as binary data. 
+			 * \note If the value length exceeds the value returned from this method, then on_value_read() will never be called. 
+			 * \note Whitespace does not count against the value length. \see push_result
+			 */
+			virtual size_t on_key_read(const std::string &key) = 0;
+
+			/*! \brief Callback for value read 
+			 *
+			 * \note If the size of non-whitespace value exceeded the buffer length, then this method will never be called. \see on_key_read()
+			 */
+			virtual void on_value_read(const std::string &key, const data_reference &value) = 0;
+
+			/*! \brief Callback for when the object is closed
+			 *
+			 * After this callback, calls to is_closed() will return `true` and calls to push() will return `REJECTED` until reset() is called
+			 * \note It is safe to call reset() from this method to reset the stream
+			 */
+			virtual void on_object_closed() = 0;
+		private:
+			/*! \brief The key for the current entry */
+			std::string __key;
+
+			/*! \brief The buffer used to read data
+			 *
+			 * \note This buffer is used to read the key and then is reset before reading the value. 
+			 */
+			reader __value;
+
+			/*! \brief Enum for tracking the state of the stream */
+			enum state
+			{
+				INTIALIZED, ///< The object has not been opened. Initial state of the stream. 
+				READING_KEY, ///< A key is being read. Will jump to AWAITING_COLON after key read. 
+				AWAITING_COLON, ///< A key has been read but the colon has not been encountered. Will jump to AWAITING_VALUE once the colon is encountered. 
+				AWAITING_VALUE, ///< A key and colon has been read. Will jump to READING_VALUE when the start of the value is encountered. 
+				READING_VALUE, ///< Reading the value. Can jump to AWAITING_NEXT or CLOSED. 
+				VALUE_READ, ///< Value read is complete. Waiting for comma or end brace
+				AWAITING_NEXT, ///< Waiting for the next key. Will jump to READING_KEY. 
+				CLOSED ///< Object has been completely read. is_closed() will return `true`.
+			};
+
+			/*! \brief The current state of the stream. */
+			state __state;
+		};
+
+		class parser : public istream, public data_parser
+		{
+		public:
+			parser();
+			virtual ~parser();
+			virtual void reset();
+			const jobject& result() const;
+			data_reference emit() const;
+		private:
+			virtual void on_object_opened();
+			virtual size_t on_key_read(const std::string &key);
+			virtual void on_value_read(const std::string &key, const data_reference &value);
+			virtual void on_object_closed();
+			jobject * __obj;
+		};
 	};
 }
 
