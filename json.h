@@ -98,7 +98,7 @@ namespace json
 		inline bool is_null() const { return this->type() == jtype::jnull; }
 	};
 
-	class data_reference : public data_source
+	class data_reference : virtual public data_source
 	{
 	public:
 		static data_reference create(data_source * input);
