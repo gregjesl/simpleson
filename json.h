@@ -26,17 +26,6 @@ namespace json
 	// Forward declaration
 	class jarray;
 
-	/*! \brief Exception used for invalid JSON keys */
-	class invalid_key : public std::runtime_error
-	{
-	public:
-		/*! \brief Constructor
-		 *
-		 * @param key The key that was not valid
-		 */
-		inline invalid_key(const std::string &key) : std::runtime_error(key) { }
-	};
-
 	/*! \brief Exception used when invalid JSON is encountered */
 	class parsing_error : public std::invalid_argument
 	{
