@@ -757,6 +757,9 @@ namespace json
 		public:
 			parser();
 			virtual ~parser();
+			virtual inline jtype::jtype type() const { return json::jtype::jobject; }
+			virtual inline push_result push(const char next) { return this->__handler->push(next); }
+			virtual inline bool is_valid() const { return this->__handler->is_valid(); }
 			virtual void reset();
 			const jobject& result() const;
 			data_reference emit() const;
