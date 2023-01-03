@@ -26,18 +26,6 @@
  */
 #define IS_DIGIT(input) (input >= '0' && input <= '9')
 
-/*! \brief Format used for integer to string conversion */
-const char * INT_FORMAT = "%i";
-
-/*! \brief Format used for unsigned integer to string conversion */
-const char * UINT_FORMAT = "%u";
-
-/*! \brief Format used for long integer to string conversion */
-const char * LONG_FORMAT = "%li";
-
-/*! \brief Format used for unsigned long integer to string conversion */
-const char * ULONG_FORMAT = "%lu";
-
 /*! \brief Format used for character to string conversion */
 const char * CHAR_FORMAT = "%c";
 
@@ -178,7 +166,7 @@ namespace
         virtual operator float() const { return (float)this->__value; }
         virtual operator double() const { return (double)this->__value; }
         virtual operator long double() const { return (long double)this->__value; }
-        virtual bool as_bool() const { return (bool)this->__value; }
+
         virtual std::string serialize() const { return this->as_string(); }
     protected:
         const T __value;
@@ -189,6 +177,7 @@ namespace
     {
     public:
         integer_data_source(const T value) : number_data_source<T>(value) { }
+        virtual bool as_bool() const { return this->__value != 0; }
         virtual std::string as_string() const
         {
             if(this->__value == 0) return "0";
@@ -266,13 +255,13 @@ namespace
     class json_data_source : public json::data_source
     {
     public:
-        inline json_data_source(const T &value) : __data(value) { }
+        T data;
+        inline json_data_source() : data() { }
+        inline json_data_source(const T &value) : data(value) { }
         inline virtual json::jtype::jtype type() const { return __type; }
-        inline virtual std::string serialize() const { return this->__data.serialize(); }
-        inline virtual std::string as_string() const { return this->__data.serialize(); }
-        inline virtual operator T() const { return this->__data; }
-    private:
-        T __data;
+        inline virtual std::string serialize() const { return this->data.serialize(); }
+        inline virtual std::string as_string() const { return this->data.serialize(); }
+        inline virtual operator T() const { return this->data; }
     };
 
     typedef json_data_source<json::jarray, json::jtype::jarray> jarray_data_source;
@@ -302,6 +291,31 @@ namespace
         virtual bool as_bool() const { return this->__data; }
     private:
         bool __data;
+    };
+
+    class jobject_parser : public json::jobject::istream
+    {
+    public:
+        inline jobject_parser(json::jobject * sink) 
+            : json::jobject::istream(), 
+            __obj(sink) 
+        { assert(sink != NULL); }
+        virtual void on_object_opened()
+        {
+            this->__obj->clear();
+        }
+        virtual size_t on_key_read(const std::string &key)
+        { return 0; }
+        virtual void on_value_read(const std::string &key, const json::data_reference &value)
+        {
+            this->__obj->set(key, value);
+        }
+        virtual void on_object_closed()
+        {
+            // Do nothing
+        }
+    private:
+        json::jobject * __obj;
     };
 }
 
@@ -1829,22 +1843,23 @@ void json::jobject::istream::reset()
 }
 
 json::jobject::parser::parser()
-    : istream(),
-    __obj(NULL)
-{ }
+{ 
+    jobject_data_source * source = new jobject_data_source();
+    this->__obj = &source->data;
+    this->__data = json::data_reference::create(source);
+    this->__handler = new jobject_parser(this->__obj);
+}
 
 json::jobject::parser::~parser()
 {
     this->reset();
+    delete this->__handler;
 }
 
 void json::jobject::parser::reset()
 {
-    json::jobject::istream::reset();
-    if(this->__obj != NULL) {
-        delete this->__obj;
-        this->__obj = NULL;
-    }
+    this->__handler->reset();
+    this->__obj->clear();
 }
 
 const json::jobject& json::jobject::parser::result() const
@@ -1858,26 +1873,5 @@ json::data_reference json::jobject::parser::emit() const
 {
     if(!this->is_valid()) throw std::bad_cast();
     assert(this->__obj != NULL);
-    return json::data_reference::create(new jobject_data_source(*this->__obj));
-}
-
-void json::jobject::parser::on_object_opened()
-{
-    this->__obj = new json::jobject();
-}
-
-size_t json::jobject::parser::on_key_read(const std::string &key)
-{
-    // Do nothing
-    return 0;
-}
-
-void json::jobject::parser::on_value_read(const std::string &key, const json::data_reference &value)
-{
-    this->__obj->set(key, value);
-}
-
-void json::jobject::parser::on_object_closed()
-{
-    // Do nothing
+    return this->__data;
 }

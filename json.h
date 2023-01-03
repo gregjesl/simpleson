@@ -695,6 +695,7 @@ namespace json
 		public:
 			virtual inline jtype::jtype type() const { return json::jtype::jobject; }
 			istream();
+			virtual inline ~istream() { }
 			virtual push_result push(const char next);
 			virtual bool is_valid() const;
 			virtual void reset();
@@ -751,7 +752,7 @@ namespace json
 			state __state;
 		};
 
-		class parser : public istream, public data_parser
+		class parser : public data_parser
 		{
 		public:
 			parser();
@@ -760,10 +761,8 @@ namespace json
 			const jobject& result() const;
 			data_reference emit() const;
 		private:
-			virtual void on_object_opened();
-			virtual size_t on_key_read(const std::string &key);
-			virtual void on_value_read(const std::string &key, const data_reference &value);
-			virtual void on_object_closed();
+			data_reference __data;
+			istream * __handler;
 			jobject * __obj;
 		};
 	};
