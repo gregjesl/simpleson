@@ -1844,10 +1844,8 @@ void json::jobject::istream::reset()
 
 json::jobject::parser::parser()
 { 
-    jobject_data_source * source = new jobject_data_source();
-    this->__obj = &source->data;
-    this->__data = json::data_reference::create(source);
     this->__handler = new jobject_parser(this->__obj);
+    this->reset();
 }
 
 json::jobject::parser::~parser()
@@ -1858,8 +1856,10 @@ json::jobject::parser::~parser()
 
 void json::jobject::parser::reset()
 {
+    jobject_data_source * source = new jobject_data_source();
+    this->__obj = &source->data;
+    this->__data = json::data_reference::create(source);
     this->__handler->reset();
-    this->__obj->clear();
 }
 
 const json::jobject& json::jobject::parser::result() const
