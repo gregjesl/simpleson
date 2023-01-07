@@ -297,8 +297,8 @@ namespace
     {
     public:
         inline jobject_parser(json::jobject * sink) 
-            : json::jobject::istream(), 
-            __obj(sink) 
+            : json::jobject::istream(),
+            __obj(sink)
         { assert(sink != NULL); }
         virtual void on_object_opened()
         {
@@ -1843,9 +1843,10 @@ void json::jobject::istream::reset()
 }
 
 json::jobject::parser::parser()
-{ 
-    this->__handler = new jobject_parser(this->__obj);
+    : __handler(NULL)
+{
     this->reset();
+    this->__handler = new jobject_parser(this->__data);
 }
 
 json::jobject::parser::~parser()
@@ -1857,21 +1858,22 @@ json::jobject::parser::~parser()
 void json::jobject::parser::reset()
 {
     jobject_data_source * source = new jobject_data_source();
-    this->__obj = &source->data;
-    this->__data = json::data_reference::create(source);
-    this->__handler->reset();
+    this->__source = source;
+    this->__data = &source->data;
+    this->__ref = json::data_reference::create(this->__source);
+    if(this->__handler != NULL)
+        this->__handler->reset();
 }
 
 const json::jobject& json::jobject::parser::result() const
 {
     if(!this->is_valid()) throw std::bad_cast();
-    assert(this->__obj != NULL);
-    return *this->__obj;
+    assert(this->__data != NULL);
+    return *this->__data;
 }
 
 json::data_reference json::jobject::parser::emit() const
 {
     if(!this->is_valid()) throw std::bad_cast();
-    assert(this->__obj != NULL);
-    return this->__data;
+    return this->__ref;
 }

@@ -764,9 +764,10 @@ namespace json
 			const jobject& result() const;
 			data_reference emit() const;
 		private:
-			data_reference __data;
+			jobject * __data;
 			istream * __handler;
-			jobject * __obj;
+			data_source * __source;
+			data_reference __ref;
 		};
 	};
 }
