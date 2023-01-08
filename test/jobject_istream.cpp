@@ -13,8 +13,9 @@ protected:
     {
         object_open = true;
     }
-    virtual size_t on_key_read(const std::string &key)
+    virtual size_t on_key_read(const std::string &key, const json::jtype::jtype type)
     {
+        TEST_EQUAL(type, json::jtype::jstring);
         switch (keys_detected)
         {
         case 0:

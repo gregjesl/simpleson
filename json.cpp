@@ -140,6 +140,10 @@ namespace json
 
 namespace
 {
+    const char * golden_true = "true";
+    const char * golden_false = "false";
+    const char * golden_null = "null";
+
     class null_data_source : public json::data_source
     {
     public:
@@ -293,6 +297,437 @@ namespace
         bool __data;
     };
 
+    bool is_control_character(const char input)
+    {
+        switch (input)
+        {
+        case 'b':
+        case 'f':
+        case 'n':
+        case 'r':
+        case 't':
+        case '"':
+        case '\\':
+        case '/':
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    bool is_hex_digit(const char input)
+    {
+        return IS_DIGIT(input) || (input >= 'a' && input <= 'f') || (input >= 'A' && input <= 'F');
+    }
+
+    class string_parser : public json::data_parser, private std::string
+    {
+    private:
+        enum state_enum
+		{
+			STRING_EMPTY = 0, ///< No values have been read
+			STRING_OPENING_QUOTE, ///< The opening quote has been read. Equivalant to #STRING_OPEN, but used for debugging the state
+			STRING_OPEN, ///< The opening quote has been read and the last character was not an escape character
+			STRING_ESCAPED, ///< The last character was an reverse solidus (\), indicating the next character should be a control character 
+			STRING_CODE_POINT_START, ///< An encoded unicode character is encountered. Expecting four following hex digits. 
+			STRING_CODE_POINT_1, ///< An encoded unicode character is encountered. Expecting three following hex digits (one has already been read). 
+			STRING_CODE_POINT_2, ///< An encoded unicode character is encountered. Expecting two following hex digits (two have already been read). 
+			STRING_CODE_POINT_3, ///< An encoded unicode character is encountered. Expecting one following hex digit (three has already been read). 
+			STRING_CLOSED ///< The closing quote has been read. Reading should cease. 
+		};
+
+        state_enum __state;
+    public:
+        virtual json::jtype::jtype type() const { return json::jtype::jstring; }
+
+        virtual push_result push(const char next)
+        {
+            switch (this->__state)
+            {
+            case STRING_EMPTY:
+                assert(this->length() == 0);
+                if(next == '"') {
+                    assert(this->length() == 0);
+                    this->push_back(next);
+                    this->__state = STRING_OPENING_QUOTE;
+                    return ACCEPTED;
+                }
+                return REJECTED;
+            case STRING_OPENING_QUOTE:
+                assert(this->length() == 1);
+                this->__state = STRING_OPEN;
+                // Fall through deliberate
+            case STRING_OPEN:
+                assert(this->length() > 0);
+                switch (next)
+                {
+                case '\\':
+                    this->__state = STRING_ESCAPED;
+                    break;
+                case '"':
+                    this->__state = STRING_CLOSED;
+                    break;
+                default:
+                    // No state change
+                    break;
+                }
+                this->push_back(next);
+                return ACCEPTED;
+            case STRING_ESCAPED:
+                if(is_control_character(next)) {
+                    this->__state = STRING_OPEN;
+                    this->push_back(next);
+                    return ACCEPTED;
+                } else if(next == 'u') {
+                    this->__state = STRING_CODE_POINT_START;
+                    this->push_back(next);
+                    return ACCEPTED;
+                }
+                return REJECTED;
+            case STRING_CODE_POINT_START:
+                assert(this->back() == 'u');
+                if(!is_hex_digit(next)) return REJECTED;
+                this->push_back(next);
+                this->__state = STRING_CODE_POINT_1;
+                return ACCEPTED;
+            case STRING_CODE_POINT_1:
+                assert(is_hex_digit(this->back()));
+                if(!is_hex_digit(next)) return REJECTED;
+                this->push_back(next);
+                this->__state = STRING_CODE_POINT_2;
+                return ACCEPTED;
+            case STRING_CODE_POINT_2:
+                assert(is_hex_digit(this->back()));
+                if(!is_hex_digit(next)) return REJECTED;
+                this->push_back(next);
+                this->__state = STRING_CODE_POINT_3;
+                return ACCEPTED;
+            case STRING_CODE_POINT_3:
+                assert(is_hex_digit(this->back()));
+                if(!is_hex_digit(next)) return REJECTED;
+                this->push_back(next);
+                this->__state = STRING_OPEN;
+                return ACCEPTED;
+            case STRING_CLOSED:
+                return REJECTED;
+            }
+            throw std::logic_error("Unexpected return");
+        }
+
+        virtual bool is_valid() const { return this->__state == STRING_CLOSED; }
+
+		virtual void reset()
+        {
+            this->clear();
+            this->__state = STRING_EMPTY;
+        }
+
+        virtual json::data_reference emit() const
+        {
+            if(!this->is_valid()) throw std::bad_cast();
+            return json::data_reference::create(new string_data_source(*this));
+        }
+    };
+
+    bool is_integer_string(const std::string &input)
+    {
+        assert(input.size() > 0);
+        size_t start = 0;
+        if(input.at(0) == '-')
+        {
+            start++;
+            assert(input.size() > 1);
+        }
+        for(size_t i = start; i < input.size(); i++)
+        {
+            if(!IS_DIGIT(input.at(i))) return false;
+        }
+        return true;
+    }
+
+    json::data_source * number_from_string(const std::string &input)
+    {
+        assert(input.size() > 0);
+        if(is_integer_string(input)) {
+            // TODO: Check for overflow
+            
+            if(input.at(0) == '-') {
+                assert(input.size() > 1);
+                int64_t value = input.at(1) - '0';
+                value *= -1;
+                for(size_t i = 1; i < input.size(); i++) {
+                    value *= 10;
+                    const int64_t next = input.at(i) - '0';
+                    if(value - next > value) throw std::overflow_error("int too large");
+                    value -= next;
+                }
+                return new integer_data_source<int64_t>(value);
+            }
+
+            uint64_t value = input.at(0) - '0';
+            for(size_t i = 1; i < input.size(); i++) {
+                value *= 10;
+                const uint64_t next = input.at(i) - '0';
+                if(value + next < value) throw std::overflow_error("int too large");
+                value += next;
+            }
+            return new integer_data_source<uint64_t>(value);
+        }
+
+        // Input is a float
+        return new floating_point_data_source<double>(input, DOUBLE_FORMAT);
+    }
+
+    class number_parser : public json::data_parser, private std::string
+    {
+    private:
+        enum state_enum
+		{
+			NUMBER_EMPTY = 0, ///< No values have been read
+			NUMBER_OPEN_NEGATIVE, ///< A negative value has been read as the first character
+			NUMBER_ZERO, ///< A zero has been read as an integer value
+			NUMBER_INTEGER_DIGITS, ///< Integer digits were the last values read
+			NUMBER_DECIMAL, ///< A decimal point was the last value read
+			NUMBER_FRACTION_DIGITS, ///< A decimal point and subsequent digits were the last values read
+			NUMBER_EXPONENT, ///< An exponent indicator has been read
+			NUMBER_EXPONENT_SIGN, ///< An exponent sign has been read
+			NUMBER_EXPONENT_DIGITS ///< An exponent indicator and subsequent digits were the last values read
+		};
+
+        state_enum __state;
+    public:
+        virtual json::jtype::jtype type() const { return json::jtype::jstring; }
+
+        virtual push_result push(const char next)
+        {
+            switch (this->__state)
+            {
+            case NUMBER_EMPTY:
+                assert(this->length() == 0);
+                if(next == '-') {
+                    this->__state = NUMBER_OPEN_NEGATIVE;
+                    this->push_back(next);
+                    return ACCEPTED;
+                } else if(IS_DIGIT(next)) {
+                    this->__state = next == '0' ? NUMBER_ZERO : NUMBER_INTEGER_DIGITS;
+                    this->push_back(next);
+                    return ACCEPTED;
+                }
+                return REJECTED;
+            case NUMBER_OPEN_NEGATIVE:
+                if(IS_DIGIT(next)) {
+                    this->__state = next == '0' ? NUMBER_ZERO : NUMBER_INTEGER_DIGITS;
+                    this->push_back(next);
+                    return ACCEPTED;
+                }
+                return REJECTED;
+            case NUMBER_INTEGER_DIGITS:
+                assert(IS_DIGIT(this->back()));
+                if(IS_DIGIT(next)) {
+                    this->push_back(next);
+                    return ACCEPTED;
+                }
+                // Fall-through deliberate
+            case NUMBER_ZERO:
+                switch (next)
+                {
+                case '.':
+                    this->__state = NUMBER_DECIMAL;
+                    this->push_back(next);
+                    return ACCEPTED;
+                case 'e':
+                case 'E':
+                    this->__state = NUMBER_EXPONENT;
+                    this->push_back(next);
+                    return ACCEPTED;
+                default:
+                    return REJECTED;
+                }
+            case NUMBER_DECIMAL:
+                assert(this->back() == '.');
+                if(IS_DIGIT(next)) {
+                    this->__state = NUMBER_FRACTION_DIGITS;
+                    this->push_back(next);
+                    return ACCEPTED;
+                }
+                return REJECTED;
+            case NUMBER_FRACTION_DIGITS:
+                assert(IS_DIGIT(this->back()));
+                if(IS_DIGIT(next)) {
+                    this->push_back(next);
+                    return ACCEPTED;
+                } else if(next == 'e' || next == 'E') {
+                    this->__state = NUMBER_EXPONENT;
+                    this->push_back(next);
+                    return ACCEPTED;
+                }
+                return REJECTED;
+            case NUMBER_EXPONENT:
+                assert(this->back() == 'e' || this->back() == 'E');
+                if(next == '+' || next == '-') {
+                    this->__state = NUMBER_EXPONENT_SIGN;
+                    this->push_back(next);
+                    return ACCEPTED;
+                }
+                // Fall-through deliberate
+            case NUMBER_EXPONENT_SIGN:
+            case NUMBER_EXPONENT_DIGITS:
+                if(IS_DIGIT(next)) {
+                    this->__state = NUMBER_EXPONENT_DIGITS;
+                    this->push_back(next);
+                    return ACCEPTED;
+                }
+                return REJECTED;
+            }
+            throw std::logic_error("Unexpected return");
+        }
+
+        virtual bool is_valid() const
+        {
+            switch (this->__state)
+            {
+            case NUMBER_ZERO:
+            case NUMBER_INTEGER_DIGITS:
+            case NUMBER_FRACTION_DIGITS:
+            case NUMBER_EXPONENT_DIGITS:
+                return true;
+            default:
+                return false;
+            }
+        }
+
+		virtual void reset()
+        {
+            this->clear();
+            this->__state = NUMBER_EMPTY;
+        }
+
+        virtual json::data_reference emit() const
+        {
+            switch (this->__state)
+            {
+            case NUMBER_ZERO:
+            case NUMBER_INTEGER_DIGITS:
+            case NUMBER_FRACTION_DIGITS:
+            case NUMBER_EXPONENT_DIGITS:
+                return json::data_reference::create(number_from_string(*this));
+            default:
+                break;
+            }
+            throw std::bad_cast();
+        }
+    };
+
+    class boolean_parser : public json::data_parser
+    {
+    private:
+        bool __value;
+        size_t __bytes_read;
+
+    public:
+        boolean_parser() : __value(false), __bytes_read(0) { }
+
+        virtual json::jtype::jtype type() const { return json::jtype::jbool; }
+
+        virtual push_result push(const char next)
+        {
+            const char * golden = this->__value ? golden_true : golden_false;
+
+            assert(this->__bytes_read < strlen(golden));
+
+            if(this->is_valid()) return REJECTED;
+
+            if(this->__bytes_read == 0)
+            {
+                if(std::isspace(next)) return WHITESPACE;
+                switch (next)
+                {
+                case 't':
+                    this->__value = true;
+                    this->__bytes_read++;
+                    return ACCEPTED;
+                    break;
+                case 'f':
+                    this->__value = false;
+                    this->__bytes_read++;
+                    return ACCEPTED;
+                default:
+                    return REJECTED;
+                    break;
+                }
+            }
+
+            if(next == golden[this->__bytes_read]) {
+                this->__bytes_read++;
+                return ACCEPTED;
+            }
+
+            return REJECTED;
+        }
+
+        virtual bool is_valid() const
+        {
+            return this->__bytes_read == 
+                ( this->__value 
+                ? 
+                strlen(golden_true)
+                :
+                strlen(golden_false)
+                );
+        }
+
+		virtual void reset()
+        {
+            this->__bytes_read = 0;
+        }
+
+        virtual json::data_reference emit() const
+        {
+            return json::data_reference::create(new bool_data_source(this->__value));
+        }
+    };
+
+    class null_parser : public json::data_parser
+    {
+    private:
+        bool __value;
+        size_t __bytes_read;
+
+    public:
+        null_parser() : __bytes_read(0) { }
+
+        virtual json::jtype::jtype type() const { return json::jtype::jnull; }
+
+        virtual push_result push(const char next)
+        {
+            if(this->is_valid()) return REJECTED;
+
+            assert(this->__bytes_read < strlen(golden_null));
+
+            if(next == golden_null[this->__bytes_read]) {
+                this->__bytes_read++;
+                return ACCEPTED;
+            }
+
+            return REJECTED;
+        }
+
+        virtual bool is_valid() const
+        {
+            return this->__bytes_read == strlen(golden_null);
+        }
+
+		virtual void reset()
+        {
+            this->__bytes_read = 0;
+        }
+
+        virtual json::data_reference emit() const
+        {
+            return json::data_reference::create(new null_data_source());
+        }
+    };
+
     class jobject_parser : public json::jobject::istream
     {
     public:
@@ -304,7 +739,7 @@ namespace
         {
             this->__obj->clear();
         }
-        virtual size_t on_key_read(const std::string &key)
+        virtual size_t on_key_read(const std::string &key, const json::jtype::jtype type)
         { return 0; }
         virtual void on_value_read(const std::string &key, const json::data_reference &value)
         {
@@ -484,29 +919,6 @@ bool json::reader::is_valid() const
         return false;
     }
     throw std::logic_error("Unexpected return");
-}
-
-bool is_control_character(const char input)
-{
-    switch (input)
-    {
-    case 'b':
-    case 'f':
-    case 'n':
-    case 'r':
-    case 't':
-    case '"':
-    case '\\':
-    case '/':
-        return true;
-    default:
-        return false;
-    }
-}
-
-bool is_hex_digit(const char input)
-{
-    return IS_DIGIT(input) || (input >= 'a' && input <= 'f') || (input >= 'A' && input <= 'F');
 }
 
 json::reader::push_result json::reader::push_string(const char next)
@@ -843,7 +1255,7 @@ json::reader::push_result json::reader::push_boolean(const char next)
         str = str_false;
         break;
     default:
-        throw json::parsing_error("Unexpected state");
+        throw std::logic_error("Unexpected state");
     }
     assert(str == str_true || str == str_false);
 
@@ -881,7 +1293,7 @@ json::reader::push_result json::reader::push_null(const char next)
     case 4:
         return REJECTED;
     default:
-        throw json::parsing_error("Unexpected state");
+        throw std::logic_error("Unexpected state");
     }
 }
 
@@ -1159,78 +1571,14 @@ json::jobject json::jobject::parse(const char *input)
 {
     // Check for valid input
     if(input == NULL) throw std::invalid_argument(__FUNCTION__);
-    const char *index = json::parsing::tlws(input);
-    if(EMPTY_STRING(index) || *index != '{') throw std::invalid_argument(__FUNCTION__);
-
-    // Initalize the result
-    json::jobject result;
-    std::string key;
-    index++;
-    SKIP_WHITE_SPACE(index);
-
-    // Check for empty array
-    if (*index == '}') return result;
-
-    // Initialize the reader
-    json::reader entry;
-
-    // Iterate over values
-    next_value:
-
-    // Verify an empty entry
-    assert(entry.length() == 0);
-
-    // Read the data
-    while(entry.push(*index) != reader::REJECTED) index++;
-    
-    // Verify a valid read
-    if(!entry.is_valid() || entry.type() != json::jtype::jstring) throw std::invalid_argument(__FUNCTION__);
-
-    // Record the key
-    key = json::parsing::decode_string(entry.serialize().c_str());
-
-    // Clear the key read
-    entry.clear();
-
-    // Look for the colon
-    SKIP_WHITE_SPACE(index);
-    if(*index != ':') throw std::invalid_argument(__FUNCTION__);
-    index++;
-
-    // Read the value
-    while(entry.push(*index) != reader::REJECTED) index++;
-
-    // Verify a valid read
-    if(!entry.is_valid()) throw std::invalid_argument(__FUNCTION__);
-
-     // Store the value
-    result.set(key, entry.emit());
-
-    // Clear the reader
-    entry.clear();
-
-    // Reset the key
-    key.clear();
-
-    // Trim any whitespace
-    SKIP_WHITE_SPACE(index);
-
-    // Check for remaining value
-    if(EMPTY_STRING(index)) throw std::invalid_argument(__FUNCTION__);
-
-    // Check for next entry
-    if(*index == ',') 
+    SKIP_WHITE_SPACE(input);
+    json::jobject::parser sink;
+    while(sink.push(*input) != json::jistream::REJECTED)
     {
-        index++;
-        SKIP_WHITE_SPACE(index);
-        goto next_value;
+        input++;
     }
-
-    // At this point the array should be closed
-    if(*index != '}') throw std::invalid_argument(__FUNCTION__);
-
-    index++;
-    return result;
+    if(!sink.is_valid()) throw json::parsing_error("Invalid input");
+    return sink.result();
 }
 
 json::key_list_t json::jobject::list_keys() const
@@ -1588,55 +1936,6 @@ void json::dynamic_data::set_null()
     this->reassign(new null_data_source());
 }
 
-bool is_integer_string(const std::string &input)
-{
-    assert(input.size() > 0);
-    size_t start = 0;
-    if(input.at(0) == '-')
-    {
-        start++;
-        assert(input.size() > 1);
-    }
-    for(size_t i = start; i < input.size(); i++)
-    {
-        if(!IS_DIGIT(input.at(i))) return false;
-    }
-    return true;
-}
-
-json::data_source * number_from_string(const std::string &input)
-{
-    assert(input.size() > 0);
-    if(is_integer_string(input)) {
-        // TODO: Check for overflow
-        
-        if(input.at(0) == '-') {
-            assert(input.size() > 1);
-            int64_t value = input.at(1) - '0';
-            value *= -1;
-            for(size_t i = 1; i < input.size(); i++) {
-                value *= 10;
-                const int64_t next = input.at(i) - '0';
-                if(value - next > value) throw std::overflow_error("int too large");
-                value -= next;
-            }
-            return new integer_data_source<int64_t>(value);
-        }
-
-        uint64_t value = input.at(0) - '0';
-        for(size_t i = 1; i < input.size(); i++) {
-            value *= 10;
-            const uint64_t next = input.at(i) - '0';
-            if(value + next < value) throw std::overflow_error("int too large");
-            value += next;
-        }
-        return new integer_data_source<uint64_t>(value);
-    }
-
-    // Input is a float
-    return new floating_point_data_source<double>(input, DOUBLE_FORMAT);
-}
-
 json::data_reference json::reader::emit() const
 {
     switch (this->type())
@@ -1751,7 +2050,7 @@ json::jistream::push_result json::jobject::istream::push(const char next)
             if(this->__value.is_valid()) {
                 this->__key = this->__value.emit().as_string();
                 this->__value.clear();
-                this->on_key_read(this->__key);
+                this->__bytes_accepted = 0;
                 this->__state = AWAITING_COLON;
             }
             return ACCEPTED;
@@ -1772,9 +2071,25 @@ json::jistream::push_result json::jobject::istream::push(const char next)
         return REJECTED;
     case AWAITING_VALUE:
         if(std::isspace(next)) return WHITESPACE;
+        switch (json::jtype::peek(next))
+        {
+        case json::jtype::not_valid:
+            return REJECTED;
+            break;
+        default:
+            break;
+        }
         switch (this->__value.push(next))
         {
         case ACCEPTED:
+            this->__bytes_to_accept = this->on_key_read(this->__key, json::jtype::peek(next));
+            this->__bytes_accepted = 1;
+            /*
+            if(this->__bytes_to_accept == 0) {
+                this->on_value_overflow(next);
+                this->__value.clear();
+            }
+            */
             this->__state = READING_VALUE;
             return ACCEPTED;
             break;
@@ -1789,6 +2104,7 @@ json::jistream::push_result json::jobject::istream::push(const char next)
         switch (this->__value.push(next))
         {
         case ACCEPTED:
+            this->__bytes_accepted++;
             return ACCEPTED;
             break;
         case WHITESPACE:

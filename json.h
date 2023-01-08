@@ -36,8 +36,25 @@ namespace json
 		 */
 		inline parsing_error(const char *message) : std::invalid_argument(message) { }
 
+		/*! \brief Constructor 
+		 *
+		 * @param message Details regarding the parsing error
+		 */
+		inline parsing_error(const std::string &message) : std::invalid_argument(message) { }
+
 		/*! \brief Destructor */
 		inline virtual ~parsing_error() throw() { }
+	};
+
+	class unexpected_character : public parsing_error
+	{
+	public:
+		inline unexpected_character(const char value)
+			: parsing_error("Unexpected character '" + std::string(value, 1) + "'"),
+			rejected_char(value)
+		{ }
+
+		const char rejected_char;
 	};
 
 	/*\brief Alias for a list of keys */
@@ -594,25 +611,6 @@ namespace json
 		 */
 		static inline jobject parse(const std::string input) { return parse(input.c_str()); }
 
-		/*! /brief Attempts to parse the input string
-		 * 
-		 * @param input A serialized JSON object or array
-		 * @param[out] output Should the parsing attempt be successful, the resultant JSON object or array
-		 * @return True of the parsing attempt was successful and false if the parsing attempt was not successful
-		 */
-		inline bool static tryparse(const char *input, jobject &output)
-		{
-			try
-			{
-				output = parse(input);
-			}
-			catch(...)
-			{
-				return false;
-			}
-			return true;
-		}
-
 		/*! \brief Determines if an object contains a key
 		 *
 		 * @param key The key to check for
@@ -711,13 +709,15 @@ namespace json
 			 * \note If the value length exceeds the value returned from this method, then on_value_read() will never be called. 
 			 * \note Whitespace does not count against the value length. \see push_result
 			 */
-			virtual size_t on_key_read(const std::string &key) = 0;
+			virtual size_t on_key_read(const std::string &key, const json::jtype::jtype type) = 0;
 
 			/*! \brief Callback for value read 
 			 *
 			 * \note If the size of non-whitespace value exceeded the buffer length, then this method will never be called. \see on_key_read()
 			 */
 			virtual void on_value_read(const std::string &key, const data_reference &value) = 0;
+
+			// virtual void on_value_overflow(const char input) = 0;
 
 			/*! \brief Callback for when the object is closed
 			 *
@@ -750,6 +750,9 @@ namespace json
 
 			/*! \brief The current state of the stream. */
 			state __state;
+
+			size_t __bytes_to_accept;
+			size_t __bytes_accepted;
 		};
 
 		class parser : public data_parser
