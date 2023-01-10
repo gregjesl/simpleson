@@ -553,6 +553,7 @@ namespace json
 			enum state
 			{
 				INTIALIZED, ///< The array has not been opened. Initial state of the stream. 
+				OPENED, ///< The array has been opened. Will jump to READING_VALUE or CLOSED. 
 				AWAITING_VALUE, ///< Will jump to READING_VALUE when the start of the value is encountered. 
 				READING_VALUE, ///< Reading the value. Can jump to AWAITING_NEXT or CLOSED. 
 				VALUE_READ, ///< Value read is complete. Waiting for comma or end bracket
@@ -564,6 +565,24 @@ namespace json
 
 			/*! \brief The number of bytes that have been accepted */
 			size_t __bytes_accepted;
+		};
+
+		class parser : public data_parser
+		{
+		public:
+			parser();
+			virtual ~parser();
+			virtual inline jtype::jtype type() const { return json::jtype::jarray; }
+			virtual inline push_result push(const char next) { return this->__handler->push(next); }
+			virtual inline bool is_valid() const { return this->__handler->is_valid(); }
+			virtual void reset();
+			const jarray& result() const;
+			data_reference emit() const;
+		private:
+			jarray * __data;
+			istream * __handler;
+			data_source * __source;
+			data_reference __ref;
 		};
 	};
 
@@ -791,6 +810,7 @@ namespace json
 			enum state
 			{
 				INTIALIZED, ///< The object has not been opened. Initial state of the stream. 
+				OPENED, ///< The object has been opened. Will jump to READING_KEY or CLOSED. 
 				READING_KEY, ///< A key is being read. Will jump to AWAITING_COLON after key read. 
 				AWAITING_COLON, ///< A key has been read but the colon has not been encountered. Will jump to AWAITING_VALUE once the colon is encountered. 
 				AWAITING_VALUE, ///< A key and colon has been read. Will jump to READING_VALUE when the start of the value is encountered. 

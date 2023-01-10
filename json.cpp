@@ -728,6 +728,29 @@ namespace
         }
     };
 
+    class jarray_parser : public json::jarray::istream
+    {
+    public:
+        inline jarray_parser(json::jarray * sink) 
+            : json::jarray::istream(),
+            __obj(sink)
+        { assert(sink != NULL); }
+        virtual void on_array_opened()
+        {
+            this->__obj->clear();
+        }
+        virtual void on_value_read(const json::data_reference &value)
+        {
+            this->__obj->push_back(value);
+        }
+        virtual void on_array_closed()
+        {
+            // Do nothing
+        }
+    private:
+        json::jarray * __obj;
+    };
+
     class jobject_parser : public json::jobject::istream
     {
     public:
@@ -1502,57 +1525,14 @@ json::jarray json::jarray::parse(const char *input)
 {
     // Check for valid input
     if(input == NULL) throw std::invalid_argument(__FUNCTION__);
-    const char *index = json::parsing::tlws(input);
-    if(EMPTY_STRING(index) || *index != '[') throw std::invalid_argument(__FUNCTION__);
-
-    // Initalize the result
-    json::jarray result;
-    index++;
-    SKIP_WHITE_SPACE(index);
-
-    // Check for empty array
-    if (*index == ']') return result;
-
-    // Initialize the reader
-    json::reader entry;
-
-    // Iterate over values
-    next_value:
-
-    // Verify an empty entry
-    assert(entry.length() == 0);
-
-    // Read the data
-    while(entry.push(*index) != reader::REJECTED) index++;
-    
-    // Verify a valid read
-    if(!entry.is_valid()) throw std::invalid_argument(__FUNCTION__);
-
-     // Store the value
-    result.push_back(entry.emit());
-
-    // Clear the reader
-    entry.clear();
-
-    // Trim any whitespace
-    SKIP_WHITE_SPACE(index);
-
-    // Check for remaining value
-    if(EMPTY_STRING(index)) throw std::invalid_argument(__FUNCTION__);
-
-    // Check for next entry
-    if(*index == ',') 
+    SKIP_WHITE_SPACE(input);
+    json::jarray::parser sink;
+    while(sink.push(*input) != json::jistream::REJECTED)
     {
-        index++;
-        SKIP_WHITE_SPACE(index);
-        goto next_value;
+        input++;
     }
-
-    // At this point the array should be closed
-    if(*index != ']') throw std::invalid_argument(__FUNCTION__);
-
-    index++;
-    return result;
+    if(!sink.is_valid()) throw json::parsing_error("Invalid input");
+    return sink.result();
 }
 
 std::string json::jarray::as_string() const
@@ -1595,11 +1575,18 @@ json::jistream::push_result json::jarray::istream::push(const char next)
         if(next == '[') {
             this->__bytes_accepted = 1;
             this->on_array_opened();
-            this->__state = AWAITING_VALUE;
+            this->__state = OPENED;
             return json::jistream::ACCEPTED;
         }
         return json::jistream::REJECTED;
         break;
+    case OPENED:
+        if(next == ']') {
+            this->__bytes_accepted++;
+            this->__state = CLOSED;
+            return json::jistream::ACCEPTED;
+        }
+        // Fall-through
     case AWAITING_VALUE:
         if(std::isspace(next)) return WHITESPACE;
         if(json::jtype::peek(next) == json::jtype::not_valid) return REJECTED;
@@ -1654,6 +1641,42 @@ json::jistream::push_result json::jarray::istream::push(const char next)
     case CLOSED:
         return REJECTED;
     }
+}
+
+json::jarray::parser::parser()
+    : __handler(NULL)
+{
+    this->reset();
+    this->__handler = new jarray_parser(this->__data);
+}
+
+json::jarray::parser::~parser()
+{
+    this->reset();
+    delete this->__handler;
+}
+
+void json::jarray::parser::reset()
+{
+    jarray_data_source * source = new jarray_data_source();
+    this->__source = source;
+    this->__data = &source->data;
+    this->__ref = json::data_reference::create(this->__source);
+    if(this->__handler != NULL)
+        this->__handler->reset();
+}
+
+const json::jarray& json::jarray::parser::result() const
+{
+    if(!this->is_valid()) throw std::bad_cast();
+    assert(this->__data != NULL);
+    return *this->__data;
+}
+
+json::data_reference json::jarray::parser::emit() const
+{
+    if(!this->is_valid()) throw std::bad_cast();
+    return this->__ref;
 }
 
 json::jobject json::jobject::parse(const char *input)
@@ -2132,6 +2155,22 @@ json::jistream::push_result json::jobject::istream::push(const char next)
         }
         return json::jistream::REJECTED;
         break;
+    case OPENED:
+        if(next == '}') {
+            this->__bytes_accepted++;
+            this->__state = CLOSED;
+            return json::jistream::ACCEPTED;
+        }
+        // Fall-through
+    case AWAITING_NEXT:
+        if(std::isspace(next)) return WHITESPACE;
+        if(next == '"') {
+            this->__bytes_accepted++;
+            this->__value.push(next);
+            this->__state = READING_KEY;
+            return ACCEPTED;
+        }
+        return REJECTED;
     case READING_KEY:
         assert(this->__value.length() > 0);
         assert(this->__value.type() == json::jtype::jstring);
@@ -2214,15 +2253,6 @@ json::jistream::push_result json::jobject::istream::push(const char next)
         }
         return REJECTED;
         break;
-    case AWAITING_NEXT:
-        if(std::isspace(next)) return WHITESPACE;
-        if(next == '"') {
-            this->__bytes_accepted++;
-            this->__value.push(next);
-            this->__state = READING_KEY;
-            return ACCEPTED;
-        }
-        return REJECTED;
     case CLOSED:
         return REJECTED;
     }
