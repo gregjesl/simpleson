@@ -1569,6 +1569,93 @@ std::string json::jarray::as_string() const
     return result;
 }
 
+json::jarray::istream::istream()
+    : __state(INTIALIZED),
+    __bytes_accepted(0)
+{ }
+
+bool json::jarray::istream::is_valid() const
+{
+    return this->__state == CLOSED;
+}
+
+void json::jarray::istream::reset()
+{
+    this->__value.clear();
+    this->__bytes_accepted = 0;
+    this->__state = INTIALIZED;
+}
+
+json::jistream::push_result json::jarray::istream::push(const char next)
+{
+    switch (this->__state)
+    {
+    case INTIALIZED:
+        if(std::isspace(next)) return json::jistream::WHITESPACE;
+        if(next == '[') {
+            this->__bytes_accepted = 1;
+            this->on_array_opened();
+            this->__state = AWAITING_VALUE;
+            return json::jistream::ACCEPTED;
+        }
+        return json::jistream::REJECTED;
+        break;
+    case AWAITING_VALUE:
+        if(std::isspace(next)) return WHITESPACE;
+        if(json::jtype::peek(next) == json::jtype::not_valid) return REJECTED;
+        switch (this->__value.push(next))
+        {
+        case ACCEPTED:
+            this->__bytes_accepted++;
+            this->__state = READING_VALUE;
+            return ACCEPTED;
+            break;
+        case REJECTED:
+            return REJECTED;
+        default:
+            throw std::logic_error("Unexpected return");
+            break;
+        }
+        break;
+    case READING_VALUE:
+        switch (this->__value.push(next))
+        {
+        case ACCEPTED:
+            this->__bytes_accepted++;
+            return ACCEPTED;
+            break;
+        case WHITESPACE:
+            return WHITESPACE;
+            break;
+        case REJECTED:
+            if(!this->__value.is_valid()) return REJECTED;
+            this->on_value_read(this->__value.emit());
+            this->__value.clear();
+            break;
+            // Fall-through
+        }
+        // Fall-through
+    case VALUE_READ:
+        if(std::isspace(next)) {
+            this->__state = VALUE_READ;
+            return WHITESPACE;
+        } else if(next == ',') {
+            this->__bytes_accepted++;
+            this->__state = AWAITING_VALUE;
+            return ACCEPTED;
+        } else if(next == ']') {
+            this->__bytes_accepted++;
+            this->on_array_closed();
+            this->__state = CLOSED;
+            return ACCEPTED;
+        }
+        return REJECTED;
+        break;
+    case CLOSED:
+        return REJECTED;
+    }
+}
+
 json::jobject json::jobject::parse(const char *input)
 {
     // Check for valid input

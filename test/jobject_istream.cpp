@@ -61,6 +61,7 @@ int main(void)
     test_istream stream;
 
     TEST_FALSE(object_open);
+    TEST_EQUAL(stream.type(), json::jtype::jobject);
     TEST_FALSE(stream.is_valid());
 
     stream.push(*read++);

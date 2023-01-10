@@ -514,6 +514,57 @@ namespace json
 			}
 			return result;
 		}
+
+		class istream : virtual public jistream
+		{
+		public:
+			virtual inline jtype::jtype type() const { return json::jtype::jarray; }
+			istream();
+			virtual inline ~istream() { }
+			virtual push_result push(const char next);
+			virtual bool is_valid() const;
+			virtual void reset();
+			inline size_t bytes_accepted() const { return this->__bytes_accepted; }
+		protected:
+			virtual void on_array_opened() = 0;
+
+			/*! \brief Callback for value read 
+			 *
+			 * \note If the size of non-whitespace value exceeded the buffer length, then this method will never be called. \see on_key_read()
+			 */
+			virtual void on_value_read(const data_reference &value) = 0;
+
+			// virtual void on_value_overflow(const char input) = 0;
+
+			/*! \brief Callback for when the array is closed
+			 *
+			 * After this callback, calls to is_closed() will return `true` and calls to push() will return `REJECTED` until reset() is called
+			 * \note It is safe to call reset() from this method to reset the stream
+			 */
+			virtual void on_array_closed() = 0;
+		private:
+			/*! \brief The buffer used to read data
+			 *
+			 * \note This buffer is used to read the key and then is reset before reading the value. 
+			 */
+			reader __value;
+
+			/*! \brief Enum for tracking the state of the stream */
+			enum state
+			{
+				INTIALIZED, ///< The array has not been opened. Initial state of the stream. 
+				AWAITING_VALUE, ///< Will jump to READING_VALUE when the start of the value is encountered. 
+				READING_VALUE, ///< Reading the value. Can jump to AWAITING_NEXT or CLOSED. 
+				VALUE_READ, ///< Value read is complete. Waiting for comma or end bracket
+				CLOSED ///< Array has been completely read. is_closed() will return `true`.
+			};
+
+			/*! \brief The current state of the stream. */
+			state __state;
+
+			/*! \brief The number of bytes that have been accepted */
+			size_t __bytes_accepted;
+		};
 	};
 
 	class proxy : public dynamic_data
