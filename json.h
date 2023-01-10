@@ -697,6 +697,7 @@ namespace json
 			virtual push_result push(const char next);
 			virtual bool is_valid() const;
 			virtual void reset();
+			inline size_t bytes_accepted() const { return this->__bytes_accepted; }
 		protected:
 			virtual void on_object_opened() = 0;
 
@@ -709,7 +710,7 @@ namespace json
 			 * \note If the value length exceeds the value returned from this method, then on_value_read() will never be called. 
 			 * \note Whitespace does not count against the value length. \see push_result
 			 */
-			virtual size_t on_key_read(const std::string &key, const json::jtype::jtype type) = 0;
+			virtual void on_key_read(const std::string &key, const json::jtype::jtype type) = 0;
 
 			/*! \brief Callback for value read 
 			 *
@@ -751,7 +752,7 @@ namespace json
 			/*! \brief The current state of the stream. */
 			state __state;
 
-			size_t __bytes_to_accept;
+			/*! \brief The number of bytes that have been accepted */
 			size_t __bytes_accepted;
 		};
 

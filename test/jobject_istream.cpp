@@ -13,7 +13,7 @@ protected:
     {
         object_open = true;
     }
-    virtual size_t on_key_read(const std::string &key, const json::jtype::jtype type)
+    virtual void on_key_read(const std::string &key, const json::jtype::jtype type)
     {
         TEST_EQUAL(type, json::jtype::jstring);
         switch (keys_detected)
@@ -29,7 +29,6 @@ protected:
             break;
         }
         keys_detected++;
-        return 0;
     }
     virtual void on_value_read(const std::string &key, const json::data_reference &value)
     {
@@ -66,14 +65,17 @@ int main(void)
 
     stream.push(*read++);
     TEST_TRUE(object_open);
+    TEST_EQUAL(stream.bytes_accepted(), 1);
 
     for(size_t i = 1; i < strlen(input) - 1; i++)
     {
         TEST_EQUAL(stream.push(*read++), json::jistream::ACCEPTED);
         TEST_FALSE(stream.is_valid());
+        TEST_EQUAL(stream.bytes_accepted(), i + 1);
     }
 
     stream.push(*read);
     TEST_FALSE(object_open);
     TEST_TRUE(stream.is_valid());
+    TEST_EQUAL(stream.bytes_accepted(), strlen(input));
 }

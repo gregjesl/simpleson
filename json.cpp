@@ -739,8 +739,10 @@ namespace
         {
             this->__obj->clear();
         }
-        virtual size_t on_key_read(const std::string &key, const json::jtype::jtype type)
-        { return 0; }
+        virtual void on_key_read(const std::string &key, const json::jtype::jtype type)
+        { 
+            // Do nothing
+        }
         virtual void on_value_read(const std::string &key, const json::data_reference &value)
         {
             this->__obj->set(key, value);
@@ -2025,7 +2027,8 @@ void json::data_reference::detatch()
 }
 
 json::jobject::istream::istream()
-    : __state(INTIALIZED)
+    : __state(INTIALIZED),
+    __bytes_accepted(0)
 { }
 
 json::jistream::push_result json::jobject::istream::push(const char next)
@@ -2035,6 +2038,7 @@ json::jistream::push_result json::jobject::istream::push(const char next)
     case INTIALIZED:
         if(std::isspace(next)) return json::jistream::WHITESPACE;
         if(next == '{') {
+            this->__bytes_accepted = 1;
             this->on_object_opened();
             this->__state = AWAITING_NEXT;
             return json::jistream::ACCEPTED;
@@ -2047,10 +2051,10 @@ json::jistream::push_result json::jobject::istream::push(const char next)
         switch (this->__value.push(next))
         {
         case ACCEPTED:
+            this->__bytes_accepted++;
             if(this->__value.is_valid()) {
                 this->__key = this->__value.emit().as_string();
                 this->__value.clear();
-                this->__bytes_accepted = 0;
                 this->__state = AWAITING_COLON;
             }
             return ACCEPTED;
@@ -2065,31 +2069,19 @@ json::jistream::push_result json::jobject::istream::push(const char next)
     case AWAITING_COLON:
         if(std::isspace(next)) return WHITESPACE;
         if(next == ':') {
+            this->__bytes_accepted++;
             this->__state = AWAITING_VALUE;
             return ACCEPTED;
         }
         return REJECTED;
     case AWAITING_VALUE:
         if(std::isspace(next)) return WHITESPACE;
-        switch (json::jtype::peek(next))
-        {
-        case json::jtype::not_valid:
-            return REJECTED;
-            break;
-        default:
-            break;
-        }
+        if(json::jtype::peek(next) == json::jtype::not_valid) return REJECTED;
         switch (this->__value.push(next))
         {
         case ACCEPTED:
-            this->__bytes_to_accept = this->on_key_read(this->__key, json::jtype::peek(next));
-            this->__bytes_accepted = 1;
-            /*
-            if(this->__bytes_to_accept == 0) {
-                this->on_value_overflow(next);
-                this->__value.clear();
-            }
-            */
+            this->__bytes_accepted++;
+            this->on_key_read(this->__key, json::jtype::peek(next));
             this->__state = READING_VALUE;
             return ACCEPTED;
             break;
@@ -2124,9 +2116,11 @@ json::jistream::push_result json::jobject::istream::push(const char next)
             this->__state = VALUE_READ;
             return WHITESPACE;
         } else if(next == ',') {
+            this->__bytes_accepted++;
             this->__state = AWAITING_NEXT;
             return ACCEPTED;
         } else if(next == '}') {
+            this->__bytes_accepted++;
             this->on_object_closed();
             this->__state = CLOSED;
             return ACCEPTED;
@@ -2136,6 +2130,7 @@ json::jistream::push_result json::jobject::istream::push(const char next)
     case AWAITING_NEXT:
         if(std::isspace(next)) return WHITESPACE;
         if(next == '"') {
+            this->__bytes_accepted++;
             this->__value.push(next);
             this->__state = READING_KEY;
             return ACCEPTED;
@@ -2155,6 +2150,7 @@ void json::jobject::istream::reset()
 {
     this->__key.clear();
     this->__value.clear();
+    this->__bytes_accepted = 0;
     this->__state = INTIALIZED;
 }
 
