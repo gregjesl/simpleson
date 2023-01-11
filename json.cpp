@@ -249,7 +249,12 @@ namespace
     class string_data_source : public json::data_source, private std::string
     {
     public:
-        inline string_data_source(const std::string &value) : std::string(value) { }
+        inline string_data_source(const std::string &value, bool encoded) 
+            : std::string(encoded ? json::parsing::decode_string(value.c_str()) : value) 
+        {
+            assert(value.length() > (encoded ? 2 : 1));
+            assert(!encoded || (value.at(0) == '"' && value.at(value.length() - 1) == '"'));
+        }
         inline virtual json::jtype::jtype type() const { return json::jtype::jstring; }
         inline virtual std::string serialize() const { return json::parsing::encode_string(this->c_str()); }
         inline virtual std::string as_string() const { return *this; }
@@ -425,7 +430,7 @@ namespace
         virtual json::data_reference emit() const
         {
             if(!this->is_valid()) throw std::bad_cast();
-            return json::data_reference::create(new string_data_source(*this));
+            return json::data_reference::create(new string_data_source(*this, true));
         }
     };
 
@@ -633,9 +638,9 @@ namespace
         {
             const char * golden = this->__value ? golden_true : golden_false;
 
-            assert(this->__bytes_read < strlen(golden));
-
             if(this->is_valid()) return REJECTED;
+
+            assert(this->__bytes_read < strlen(golden));
 
             if(this->__bytes_read == 0)
             {
@@ -777,6 +782,34 @@ namespace
     private:
         json::jobject * __obj;
     };
+
+    json::data_parser * create_parser(const json::jtype::jtype type)
+    {
+        switch (type)
+        {
+        case json::jtype::jarray:
+            return new json::jarray::parser();
+            break;
+        case json::jtype::jbool:
+            return new boolean_parser();
+            break;
+        case json::jtype::jnull:
+            return new null_parser();
+            break;
+        case json::jtype::jnumber:
+            return new number_parser();
+            break;
+        case json::jtype::jobject:
+            return new json::jobject::parser();
+            break;
+        case json::jtype::jstring:
+            return new string_parser();
+            break;
+        case json::jtype::not_valid:
+            return NULL;
+            break;
+        }
+    }
 }
 
 const char* json::parsing::tlws(const char *input)
@@ -846,524 +879,6 @@ json::data_reference::operator json::jarray() const
 json::data_reference::operator json::jobject() const
 {
     return this->__source->operator json::jobject();
-}
-
-void json::reader::clear()
-{
-    std::string::clear(); 
-    if(this->sub_reader != NULL) {
-        delete this->sub_reader;
-        this->sub_reader = NULL;
-    }
-    this->read_state = 0;
-}
-
-json::reader::push_result json::reader::push(const char next)
-{
-    // Check for opening whitespace
-    if(this->length() == 0 && std::isspace(next)) return reader::ACCEPTED;
-
-    // Get the type
-    const json::jtype::jtype type = json::jtype::peek(this->length() > 0 ? this->front() : next);
-
-    // Store the return
-    reader::push_result result = reader::REJECTED;
-
-    #if DEBUG
-    const size_t start_length = this->length();
-    #endif
-
-    switch(type)
-    {
-    case json::jtype::jarray:
-        result = this->push_array(next);
-        break;
-    case json::jtype::jbool:
-        result = this->push_boolean(next);
-        assert(result != WHITESPACE);
-        break;
-    case json::jtype::jnull:
-        result = this->push_null(next);
-        assert(result != WHITESPACE);
-        break;
-    case json::jtype::jnumber:
-        result = this->push_number(next);
-        assert(result != WHITESPACE);
-        break;
-    case json::jtype::jobject:
-        result = this->push_object(next);
-        break;
-    case json::jtype::jstring:
-        result = this->push_string(next);
-        assert(result != WHITESPACE);
-        break;
-    case json::jtype::not_valid:
-        result = reader::REJECTED;
-        break;
-    }
-
-    // Verify the expected length change
-    #if DEBUG
-    if(result == ACCEPTED) assert(this->length() - start_length == 1);
-    else assert(this->length() == start_length);
-    #endif
-
-    // Return the result
-    return result;
-}
-
-bool json::reader::is_valid() const
-{
-    switch (this->type())
-    {
-    case jtype::jarray:
-        return this->get_state<array_reader_enum>() == ARRAY_CLOSED;
-    case jtype::jbool:
-        if(this->length() < 4) return false;
-        if(this->length() == 4 && *this == "true") return true;
-        if(this->length() == 5 && *this == "false") return true;
-        return false;
-    case jtype::jnull:
-        return (this->length() == 4 && *this == "null");
-    case jtype::jnumber:
-        switch (this->get_state<number_reader_enum>())
-        {
-        case NUMBER_ZERO:
-        case NUMBER_INTEGER_DIGITS:
-        case NUMBER_FRACTION_DIGITS:
-        case NUMBER_EXPONENT_DIGITS:
-            return true;
-        default:
-            return false;
-        }
-    case jtype::jobject:
-        return this->get_state<object_reader_enum>() == OBJECT_CLOSED;
-    case jtype::jstring:
-        return this->get_state<string_reader_enum>() == STRING_CLOSED;
-    case jtype::not_valid:
-        return false;
-    }
-    throw std::logic_error("Unexpected return");
-}
-
-json::reader::push_result json::reader::push_string(const char next)
-{
-    const string_reader_enum state = this->get_state<string_reader_enum>();
-    switch (state)
-    {
-    case STRING_EMPTY:
-        assert(this->length() == 0);
-        if(next == '"') {
-            assert(this->length() == 0);
-            this->push_back(next);
-            this->set_state(STRING_OPENING_QUOTE);
-            return ACCEPTED;
-        }
-        return REJECTED;
-    case STRING_OPENING_QUOTE:
-        assert(this->length() == 1);
-        this->set_state(STRING_OPEN);
-        // Fall through deliberate
-    case STRING_OPEN:
-        assert(this->length() > 0);
-        switch (next)
-        {
-        case '\\':
-            this->set_state(STRING_ESCAPED);
-            break;
-        case '"':
-            this->set_state(STRING_CLOSED);
-            break;
-        default:
-            // No state change
-            break;
-        }
-        this->push_back(next);
-        return ACCEPTED;
-    case STRING_ESCAPED:
-        if(is_control_character(next)) {
-            this->set_state(STRING_OPEN);
-            this->push_back(next);
-            return ACCEPTED;
-        } else if(next == 'u') {
-            this->set_state(STRING_CODE_POINT_START);
-            this->push_back(next);
-            return ACCEPTED;
-        }
-        return REJECTED;
-    case STRING_CODE_POINT_START:
-        assert(this->back() == 'u');
-        if(!is_hex_digit(next)) return REJECTED;
-        this->push_back(next);
-        this->set_state(STRING_CODE_POINT_1);
-        return ACCEPTED;
-    case STRING_CODE_POINT_1:
-        assert(is_hex_digit(this->back()));
-        if(!is_hex_digit(next)) return REJECTED;
-        this->push_back(next);
-        this->set_state(STRING_CODE_POINT_2);
-        return ACCEPTED;
-    case STRING_CODE_POINT_2:
-        assert(is_hex_digit(this->back()));
-        if(!is_hex_digit(next)) return REJECTED;
-        this->push_back(next);
-        this->set_state(STRING_CODE_POINT_3);
-        return ACCEPTED;
-    case STRING_CODE_POINT_3:
-        assert(is_hex_digit(this->back()));
-        if(!is_hex_digit(next)) return REJECTED;
-        this->push_back(next);
-        this->set_state(STRING_OPEN);
-        return ACCEPTED;
-    case STRING_CLOSED:
-        return REJECTED;
-    }
-    throw std::logic_error("Unexpected return");
-}
-
-json::reader::push_result json::reader::push_array(const char next)
-{
-    const array_reader_enum state = this->get_state<array_reader_enum>();
-
-    switch (state)
-    {
-    case ARRAY_EMPTY:
-        assert(this->sub_reader == NULL);
-        if(next == '[') {
-            this->set_state(ARRAY_OPEN_BRACKET);
-            this->push_back(next);
-            return ACCEPTED;
-        }
-        return REJECTED;
-    case ARRAY_OPEN_BRACKET:
-        assert(this->sub_reader == NULL);
-        if(std::isspace(next)) return WHITESPACE;
-        if(next == ']') {
-            this->set_state(ARRAY_CLOSED);
-            this->push_back(next);
-            return ACCEPTED;
-        }
-        begin_reading_value:
-        if(json::jtype::peek(next) == json::jtype::not_valid) return REJECTED;
-        this->sub_reader = new reader();
-        this->set_state(ARRAY_READING_VALUE);
-        // Fall-through deliberate
-    case ARRAY_READING_VALUE:
-        assert(this->sub_reader != NULL);
-        if(this->sub_reader->is_valid() && std::isspace(next)) return WHITESPACE;
-        switch (this->sub_reader->push(next))
-        {
-        case ACCEPTED:
-            return ACCEPTED;
-        case WHITESPACE:
-            return WHITESPACE;
-        case REJECTED:
-            switch (next)
-            {
-            case ']':
-                if(!this->sub_reader->is_valid()) return REJECTED;
-                this->append(this->sub_reader->serialize());
-                delete this->sub_reader;
-                this->sub_reader = NULL;
-                this->push_back(next);
-                this->set_state(ARRAY_CLOSED);
-                return ACCEPTED;
-            case ',':
-                if(!this->sub_reader->is_valid()) return REJECTED;
-                this->append(this->sub_reader->serialize());
-                delete this->sub_reader;
-                this->sub_reader = NULL;
-                this->push_back(next);
-                this->set_state(ARRAY_AWAITING_NEXT_LINE);
-                return ACCEPTED;
-            default:
-                return REJECTED;
-            }
-        }
-        // This point should not be reached
-        break;
-    case ARRAY_AWAITING_NEXT_LINE:
-        if(std::isspace(next)) return WHITESPACE;
-        goto begin_reading_value;
-    case ARRAY_CLOSED:
-        return REJECTED;
-    }
-    throw std::logic_error("Unexpected return");
-}
-
-json::reader::push_result json::reader::push_object(const char next)
-{
-    const object_reader_enum state = this->get_state<object_reader_enum>();
-
-    switch (state)
-    {
-    case OBJECT_EMPTY:
-        assert(this->sub_reader == NULL);
-        if(next == '{') {
-            this->set_state(OBJECT_OPEN_BRACE);
-            this->push_back(next);
-            return ACCEPTED;
-        }
-        return REJECTED;
-    case OBJECT_OPEN_BRACE:
-        assert(this->sub_reader == NULL);
-        if(next == '}') {
-            this->set_state(OBJECT_CLOSED);
-            this->push_back(next);
-            return ACCEPTED;
-        }
-        // Fall-through deliberate
-    case OBJECT_AWAITING_NEXT_LINE:
-        if(std::isspace(next)) return WHITESPACE;
-        if(next != '"') return REJECTED;
-        this->sub_reader = new kvp_reader();
-        #if DEBUG
-        assert(
-        #endif
-        this->sub_reader->push(next)
-        #if DEBUG
-        == ACCEPTED);
-        #else
-        ;
-        #endif
-        this->set_state(OBJECT_READING_ENTRY);
-        return ACCEPTED;
-    case OBJECT_READING_ENTRY:
-        assert(this->sub_reader != NULL);
-        switch (this->sub_reader->push(next))
-        {
-        case ACCEPTED:
-            return ACCEPTED;
-        case WHITESPACE:
-            return WHITESPACE;
-        case REJECTED:
-            if(!this->sub_reader->is_valid()) return REJECTED;
-            if(std::isspace(next)) return WHITESPACE;
-            switch (next)
-            {
-            case '}':
-                this->append(this->sub_reader->serialize());
-                delete this->sub_reader;
-                this->sub_reader = NULL;
-                this->push_back(next);
-                this->set_state(OBJECT_CLOSED);
-                return ACCEPTED;
-            case ',':
-                this->append(this->sub_reader->serialize());
-                delete this->sub_reader;
-                this->sub_reader = NULL;
-                this->push_back(next);
-                this->set_state(OBJECT_AWAITING_NEXT_LINE);
-                return ACCEPTED;
-            default:
-                return REJECTED;
-            }
-        }
-        // This point should never be reached
-        break;
-    case OBJECT_CLOSED:
-        return REJECTED;
-    }
-    throw std::logic_error("Unexpected return");
-}
-
-json::reader::push_result json::reader::push_number(const char next)
-{
-    const number_reader_enum state = this->get_state<number_reader_enum>();
-    switch (state)
-    {
-    case NUMBER_EMPTY:
-        assert(this->length() == 0);
-        if(next == '-') {
-            this->set_state(NUMBER_OPEN_NEGATIVE);
-            this->push_back(next);
-            return ACCEPTED;
-        } else if(IS_DIGIT(next)) {
-            this->set_state(next == '0' ? NUMBER_ZERO : NUMBER_INTEGER_DIGITS);
-            this->push_back(next);
-            return ACCEPTED;
-        }
-        return REJECTED;
-    case NUMBER_OPEN_NEGATIVE:
-        if(IS_DIGIT(next)) {
-            this->set_state(next == '0' ? NUMBER_ZERO : NUMBER_INTEGER_DIGITS);
-            this->push_back(next);
-            return ACCEPTED;
-        }
-        return REJECTED;
-    case NUMBER_INTEGER_DIGITS:
-        assert(IS_DIGIT(this->back()));
-        if(IS_DIGIT(next)) {
-            this->push_back(next);
-            return ACCEPTED;
-        }
-        // Fall-through deliberate
-    case NUMBER_ZERO:
-        switch (next)
-        {
-        case '.':
-            this->set_state(NUMBER_DECIMAL);
-            this->push_back(next);
-            return ACCEPTED;
-        case 'e':
-        case 'E':
-            this->set_state(NUMBER_EXPONENT);
-            this->push_back(next);
-            return ACCEPTED;
-        default:
-            return REJECTED;
-        }
-    case NUMBER_DECIMAL:
-        assert(this->back() == '.');
-        if(IS_DIGIT(next)) {
-            this->set_state(NUMBER_FRACTION_DIGITS);
-            this->push_back(next);
-            return ACCEPTED;
-        }
-        return REJECTED;
-    case NUMBER_FRACTION_DIGITS:
-        assert(IS_DIGIT(this->back()));
-        if(IS_DIGIT(next)) {
-            this->push_back(next);
-            return ACCEPTED;
-        } else if(next == 'e' || next == 'E') {
-            this->set_state(NUMBER_EXPONENT);
-            this->push_back(next);
-            return ACCEPTED;
-        }
-        return REJECTED;
-    case NUMBER_EXPONENT:
-        assert(this->back() == 'e' || this->back() == 'E');
-        if(next == '+' || next == '-') {
-            this->set_state(NUMBER_EXPONENT_SIGN);
-            this->push_back(next);
-            return ACCEPTED;
-        }
-        // Fall-through deliberate
-    case NUMBER_EXPONENT_SIGN:
-    case NUMBER_EXPONENT_DIGITS:
-        if(IS_DIGIT(next)) {
-            this->set_state(NUMBER_EXPONENT_DIGITS);
-            this->push_back(next);
-            return ACCEPTED;
-        }
-        return REJECTED;
-    }
-    throw std::logic_error("Unexpected return");
-}
-
-json::reader::push_result json::reader::push_boolean(const char next)
-{
-    const char *str_true = "true";
-    const char *str_false = "false";
-    const char *str = NULL;
-
-    if(this->length() == 0) {
-        switch (next)
-        {
-        case 't':
-        case 'f':
-            this->push_back(next);
-            return ACCEPTED;
-        default:
-            return REJECTED;
-        }
-    }
-
-    // Determine which string to use
-    switch (this->at(0))
-    {
-    case 't':
-        str = str_true;
-        break;
-    case 'f':
-        str = str_false;
-        break;
-    default:
-        throw std::logic_error("Unexpected state");
-    }
-    assert(str == str_true || str == str_false);
-
-    // Push the value
-    if(this->length() < strlen(str) && str[this->length()] == next) {
-        this->push_back(next);
-        return ACCEPTED;
-    }
-    return REJECTED;
-}
-
-json::reader::push_result json::reader::push_null(const char next)
-{    
-    switch (this->length())
-    {
-    case 0:
-        if(next == 'n') {
-            this->push_back(next);
-            return ACCEPTED;
-        }
-        return REJECTED;
-    case 1:
-        if(next == 'u') {
-            this->push_back(next);
-            return ACCEPTED;
-        }
-        return REJECTED;
-    case 2:
-    case 3:
-        if(next == 'l') {
-            this->push_back(next);
-            return ACCEPTED;
-        }
-        // Fall through
-    case 4:
-        return REJECTED;
-    default:
-        throw std::logic_error("Unexpected state");
-    }
-}
-
-json::reader::push_result json::kvp_reader::push(const char next)
-{
-    if(this->_key.length() == 0) {
-        if(std::isspace(next)) return WHITESPACE;
-        if(next == '"') {
-            this->_key.push(next);
-            assert(this->_key.type() == json::jtype::jstring);
-            assert(this->_key.length() == 1);
-            return ACCEPTED;
-        }
-        return REJECTED;
-    } else if (!this->_key.is_valid()) {
-        return this->_key.push(next);
-    }
-
-    // At this point the key should be valid
-    assert(this->_key.is_valid());
-
-    if(!this->_colon_read) {
-        if(std::isspace(next)) return WHITESPACE;
-        if(next == ':') {
-            this->_colon_read = true;
-            return ACCEPTED;
-        }
-        return REJECTED;
-    }
-
-    // At this point the colon should be read
-    assert(this->_colon_read);
-
-    // Check for a fresh start
-    if(reader::length() == 0 && std::isspace(next))
-    {
-        assert(reader::get_state<char>() == 0);
-        return WHITESPACE;
-    }
-    return reader::push(next);
-}
-
-std::string json::kvp_reader::serialize() const
-{
-    return this->_key.serialize() + ":" + reader::serialize();
 }
 
 std::string json::parsing::decode_string(const char *input)
@@ -1458,69 +973,6 @@ std::string json::parsing::encode_string(const char *input)
     return result;
 }
 
-json::parsing::parse_results json::parsing::parse(const char *input)
-{
-    // Strip white space
-    const char *index = json::parsing::tlws(input);
-
-    // Validate input
-    if (EMPTY_STRING(index)) throw json::parsing_error("Input was only whitespace");
-
-    // Initialize the output
-    json::parsing::parse_results result;
-    result.type = json::jtype::not_valid;
-
-    // Initialize the reader
-    json::reader stream;
-
-    // Iterate
-    while(!EMPTY_STRING(input) && stream.push(*index) != json::reader::REJECTED)
-    {
-        index++;
-    }
-
-    if(stream.is_valid()) {
-        result.value = stream.serialize();
-        result.type = stream.type();
-    }
-    result.remainder = index;
-
-    return result;
-}
-
-std::vector<std::string> json::parsing::parse_array(const char *input)
-{
-    // Initalize the result
-    std::vector<std::string> result;
-
-    const char *index = json::parsing::tlws(input);
-    if (*index != '[') throw json::parsing_error("Input was not an array");
-    index++;
-    SKIP_WHITE_SPACE(index);
-    if (*index == ']')
-    {
-        return result;
-    }
-    const char error[] = "Input was not properly formated";
-    while (!EMPTY_STRING(index))
-    {
-        SKIP_WHITE_SPACE(index);
-        json::parsing::parse_results parse_results = json::parsing::parse(index);
-        if (parse_results.type == json::jtype::not_valid) throw json::parsing_error(error);
-        if(parse_results.type == json::jtype::jstring) {
-            result.push_back(json::parsing::decode_string(parse_results.value.c_str()));
-        } else {
-            result.push_back(parse_results.value);
-        }
-        index = json::parsing::tlws(parse_results.remainder);
-        if (*index == ']') break;
-        if (*index == ',') index++;
-    }
-    if (*index != ']') throw json::parsing_error(error);
-    index++;
-    return result;
-}
-
 json::jarray json::jarray::parse(const char *input)
 {
     // Check for valid input
@@ -1550,7 +1002,8 @@ std::string json::jarray::as_string() const
 }
 
 json::jarray::istream::istream()
-    : __state(INTIALIZED),
+    : __value(NULL),
+    __state(INTIALIZED),
     __bytes_accepted(0)
 { }
 
@@ -1561,7 +1014,10 @@ bool json::jarray::istream::is_valid() const
 
 void json::jarray::istream::reset()
 {
-    this->__value.clear();
+    if(this->__value != NULL) {
+        delete this->__value;
+        this->__value = NULL;
+    }
     this->__bytes_accepted = 0;
     this->__state = INTIALIZED;
 }
@@ -1589,8 +1045,10 @@ json::jistream::push_result json::jarray::istream::push(const char next)
         // Fall-through
     case AWAITING_VALUE:
         if(std::isspace(next)) return WHITESPACE;
-        if(json::jtype::peek(next) == json::jtype::not_valid) return REJECTED;
-        switch (this->__value.push(next))
+        assert(this->__value == NULL);
+        this->__value = create_parser(json::jtype::peek(next));
+        if(this->__value == NULL) return REJECTED;
+        switch (this->__value->push(next))
         {
         case ACCEPTED:
             this->__bytes_accepted++;
@@ -1605,7 +1063,7 @@ json::jistream::push_result json::jarray::istream::push(const char next)
         }
         break;
     case READING_VALUE:
-        switch (this->__value.push(next))
+        switch (this->__value->push(next))
         {
         case ACCEPTED:
             this->__bytes_accepted++;
@@ -1615,9 +1073,10 @@ json::jistream::push_result json::jarray::istream::push(const char next)
             return WHITESPACE;
             break;
         case REJECTED:
-            if(!this->__value.is_valid()) return REJECTED;
-            this->on_value_read(this->__value.emit());
-            this->__value.clear();
+            if(!this->__value->is_valid()) return REJECTED;
+            this->on_value_read(this->__value->emit());
+            delete this->__value;
+            this->__value = NULL;
             break;
             // Fall-through
         }
@@ -1923,7 +1382,7 @@ json::dynamic_data::dynamic_data(const double value)
 { }
 
 json::dynamic_data::dynamic_data(const std::string &value)
-    : json::data_reference(new string_data_source(value))
+    : json::data_reference(new string_data_source(value, false))
 { }
 
 json::dynamic_data::dynamic_data(const json::jarray &value)
@@ -2006,12 +1465,12 @@ json::dynamic_data& json::dynamic_data::operator=(const double value)
 
 void json::dynamic_data::set_string(const std::string &value)
 {
-    this->reassign(new string_data_source(value));
+    this->reassign(new string_data_source(value, false));
 }
 
 json::dynamic_data& json::dynamic_data::operator=(const std::string &value)
 {
-    this->reassign(new string_data_source(value));
+    this->reassign(new string_data_source(value, false));
     return *this;
 }
 
@@ -2046,33 +1505,6 @@ void json::dynamic_data::set_false()
 void json::dynamic_data::set_null()
 {
     this->reassign(new null_data_source());
-}
-
-json::data_reference json::reader::emit() const
-{
-    switch (this->type())
-    {
-    case jtype::jarray:
-        return json::data_reference::create(
-            new jarray_data_source(json::jarray::parse(this->serialize())));
-    case jtype::jbool:
-        return json::data_reference::create(
-            new bool_data_source(this->serialize().at(0) == 't'));
-    case jtype::jnull:
-        return json::data_reference::create(
-            new null_data_source());
-    case jtype::jnumber:
-        return json::data_reference::create(number_from_string(*this));
-    case jtype::jobject:
-        return json::data_reference::create(
-            new jobject_data_source(json::jobject::parse(this->serialize())));
-    case jtype::jstring:
-        return json::data_reference::create(
-            new string_data_source(json::parsing::decode_string(this->serialize().c_str())));
-    case jtype::not_valid:
-        throw std::bad_cast();
-    }
-    assert(false);
 }
 
 json::data_reference json::data_reference::create(json::data_source * source)
@@ -2166,21 +1598,22 @@ json::jistream::push_result json::jobject::istream::push(const char next)
         if(std::isspace(next)) return WHITESPACE;
         if(next == '"') {
             this->__bytes_accepted++;
-            this->__value.push(next);
+            this->__value = new string_parser();
+            if(this->__value->push(next) != ACCEPTED) throw std::logic_error("Unexpected state");
             this->__state = READING_KEY;
             return ACCEPTED;
         }
         return REJECTED;
     case READING_KEY:
-        assert(this->__value.length() > 0);
-        assert(this->__value.type() == json::jtype::jstring);
-        switch (this->__value.push(next))
+        assert(this->__value->type() == json::jtype::jstring);
+        switch (this->__value->push(next))
         {
         case ACCEPTED:
             this->__bytes_accepted++;
-            if(this->__value.is_valid()) {
-                this->__key = this->__value.emit().as_string();
-                this->__value.clear();
+            if(this->__value->is_valid()) {
+                this->__key = this->__value->emit().as_string();
+                delete this->__value;
+                this->__value = NULL;
                 this->__state = AWAITING_COLON;
             }
             return ACCEPTED;
@@ -2202,8 +1635,11 @@ json::jistream::push_result json::jobject::istream::push(const char next)
         return REJECTED;
     case AWAITING_VALUE:
         if(std::isspace(next)) return WHITESPACE;
-        if(json::jtype::peek(next) == json::jtype::not_valid) return REJECTED;
-        switch (this->__value.push(next))
+        assert(this->__value == NULL);
+        this->__value = create_parser(json::jtype::peek(next));
+        if(this->__value == NULL) return REJECTED;
+
+        switch (this->__value->push(next))
         {
         case ACCEPTED:
             this->__bytes_accepted++;
@@ -2219,7 +1655,7 @@ json::jistream::push_result json::jobject::istream::push(const char next)
         }
         break;
     case READING_VALUE:
-        switch (this->__value.push(next))
+        switch (this->__value->push(next))
         {
         case ACCEPTED:
             this->__bytes_accepted++;
@@ -2229,10 +1665,11 @@ json::jistream::push_result json::jobject::istream::push(const char next)
             return WHITESPACE;
             break;
         case REJECTED:
-            if(!this->__value.is_valid()) return REJECTED;
-            this->on_value_read(this->__key, this->__value.emit());
+            if(!this->__value->is_valid()) return REJECTED;
+            this->on_value_read(this->__key, this->__value->emit());
             this->__key.clear();
-            this->__value.clear();
+            delete this->__value;
+            this->__value = NULL;
             break;
             // Fall-through
         }
@@ -2266,7 +1703,10 @@ bool json::jobject::istream::is_valid() const
 void json::jobject::istream::reset()
 {
     this->__key.clear();
-    this->__value.clear();
+    if(this->__value != NULL) {
+        delete this->__value;
+        this->__value = NULL;
+    }
     this->__bytes_accepted = 0;
     this->__state = INTIALIZED;
 }
