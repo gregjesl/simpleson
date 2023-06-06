@@ -49,11 +49,16 @@ namespace json
 	class unexpected_character : public parsing_error
 	{
 	public:
+		/*! \brief Constructor
+		 *
+		 * @param value The character that was not expected in the stream
+		 */
 		inline unexpected_character(const char value)
 			: parsing_error("Unexpected character '" + std::string(value, 1) + "'"),
 			rejected_char(value)
 		{ }
 
+		/*! \brief The character that was not expected in the stream */
 		const char rejected_char;
 	};
 
@@ -74,6 +79,11 @@ namespace json
 			not_valid ///< Value does not conform to JSON standard
 		};
 
+		/*! \brief Predicts the type of JSON data based on the first character 
+		 *
+		 * @param input The first character of the serialized data
+		 * \returns The predicted type of JSON data
+		 */
 		jtype peek(const char input);
 	}
 
@@ -81,7 +91,8 @@ namespace json
 	class data_source
 	{
 	public:
-		virtual inline ~data_source() { }
+		data_source();
+		virtual ~data_source();
 		virtual jtype::jtype type() const = 0;
 		virtual std::string serialize() const = 0;
 
@@ -202,6 +213,9 @@ namespace json
 	class jistream
 	{
 	public:
+		jistream();
+		virtual ~jistream();
+
 		enum push_result
 		{
 			ACCEPTED, ///< The character was valid. Reading should continue. 
@@ -245,7 +259,8 @@ namespace json
 	class data_parser : virtual public jistream
 	{
 	public:
-		virtual inline ~data_parser() { }
+		data_parser();
+		virtual ~data_parser();
 		virtual data_reference emit() const = 0;
 	};
 

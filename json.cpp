@@ -851,6 +851,12 @@ json::jtype::jtype json::jtype::peek(const char input)
     }
 }
 
+json::data_source::data_source()
+{ }
+
+json::data_source::~data_source()
+{ }
+
 json::data_source::operator json::jarray() const
 {
     throw std::bad_cast();
@@ -973,6 +979,18 @@ std::string json::parsing::encode_string(const char *input)
     return result;
 }
 
+json::jistream::jistream()
+{ }
+
+json::jistream::~jistream()
+{ }
+
+json::data_parser::data_parser()
+{ }
+
+json::data_parser::~data_parser()
+{ }
+
 json::jarray json::jarray::parse(const char *input)
 {
     // Check for valid input
@@ -983,7 +1001,7 @@ json::jarray json::jarray::parse(const char *input)
     {
         input++;
     }
-    if(!sink.is_valid()) throw json::parsing_error("Invalid input");
+    if(!sink.is_valid()) throw json::unexpected_character(*input);
     return sink.result();
 }
 
@@ -1148,7 +1166,7 @@ json::jobject json::jobject::parse(const char *input)
     {
         input++;
     }
-    if(!sink.is_valid()) throw json::parsing_error("Invalid input");
+    if(!sink.is_valid()) throw json::unexpected_character(*input);
     return sink.result();
 }
 
@@ -1513,7 +1531,8 @@ json::data_reference json::data_reference::create(json::data_source * source)
 }
 
 json::data_reference::data_reference()
-    : __source(new null_data_source()),
+    : json::data_source(),
+    __source(new null_data_source()),
     __refs(new size_t(1))
 { }
 
