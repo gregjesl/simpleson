@@ -780,7 +780,7 @@ json::parsing::parse_results json::parsing::parse(const char *input)
     json::reader stream;
 
     // Iterate
-    while(!EMPTY_STRING(input) && stream.push(*index) != json::reader::REJECTED)
+    while(!EMPTY_STRING(index) && stream.push(*index) != json::reader::REJECTED)
     {
         index++;
     }
