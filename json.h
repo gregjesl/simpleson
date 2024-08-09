@@ -46,6 +46,7 @@ namespace json
 		inline virtual ~parsing_error() throw() { }
 	};
 
+	/*! \brief Exception used when an unexpected charater is encountered */
 	class unexpected_character : public parsing_error
 	{
 	public:
@@ -106,15 +107,16 @@ namespace json
 		virtual inline operator int64_t() const { throw std::bad_cast(); }
 		virtual inline operator float() const { throw std::bad_cast(); }
 		virtual inline operator double() const { throw std::bad_cast(); }
-		// virtual inline operator long double() const { throw std::bad_cast(); }
 		virtual operator jarray() const; // Inline definition not possible due to forward declaration
 		virtual operator jobject() const; // Inline definition not possible due to forward declaration
 
 		jarray as_array() const;
 		jobject as_object() const;
 
+		/*! \brief Tempalte method for casting the data source to another data type */
 		template<typename T>
 		T cast() const { return this->operator T; }
+
 		virtual std::string as_string() const = 0;
 		virtual bool as_bool() const { throw std::bad_cast(); }
 
@@ -126,14 +128,37 @@ namespace json
 		inline bool is_null() const { return this->type() == jtype::jnull; }
 	};
 
+	/*! \brief Reference to a data source
+	 *
+	 * Data references are used as a pointer to a data source. 
+	 * 
+	 */
 	class data_reference : virtual public data_source
 	{
 	public:
+		/*! \brief Creates a data reference from a data source 
+		 *
+		 * @param input A pointer to the data source
+		 * \returns A data reference to the data source
+		 */
 		static data_reference create(data_source * input);
+
+		/*! \brief Default constructor */
 		data_reference();
+
+		/*! \brief Copy constructor */
 		data_reference(const data_reference &other);
+
+		/*! \brief Destructor */
 		virtual ~data_reference();
+
+		/*! \brief Assignment operator */
 		data_reference& operator=(const data_reference &other);
+
+		/*! \brief Reference to the data source 
+		 *
+		 * \returns A reference to the underlying data_source
+		 */
 		const data_source & ref() const { return *this->__source; }
 
 		virtual inline jtype::jtype type() const { return this->__source->type(); }
@@ -159,7 +184,12 @@ namespace json
 		 * \note This constructor must be kept private when data_referernce derives from \ref data_source, otherwise there is ambiguity between the copy constructor and this constructor. 
 		 */
 		data_reference(data_source * source);
+
+		/*! \brief Reassigns the data source
+		 */
 		void reassign(data_source * source);
+
+		/*! \brief Callback function for reassignment */
 		virtual inline void on_reassignment() { }
 	private:
 		void detatch();
@@ -167,6 +197,10 @@ namespace json
 		size_t * __refs;
 	};
 
+	/*! \brief Container for JSON-encoded data 
+	 *
+	 * This class can hold any type of JSON-encoded data. The type of data it can hold can be re-assigned dynamically as well. 
+	 */
 	class dynamic_data : public data_reference
 	{
 	public:
@@ -213,9 +247,13 @@ namespace json
 	class jistream
 	{
 	public:
+		/*! \brief Default constructor */
 		jistream();
+		
+		/*! \brief Destructor */
 		virtual ~jistream();
 
+		/*! \brief Enumeration for the result of a push to the stream*/
 		enum push_result
 		{
 			ACCEPTED, ///< The character was valid. Reading should continue. 
@@ -223,6 +261,7 @@ namespace json
 			WHITESPACE ///< The character was whitespace. Reading should continue but the whitespace was not stored. 
 		};
 
+		/*! \brief Checks the type of JSON data being fed to the stream */
 		virtual jtype::jtype type() const = 0;
 
 		/*!\ brief Pushes a value to the back of the reader 
@@ -244,29 +283,46 @@ namespace json
 
 		virtual bool is_valid() const = 0;
 		virtual void reset() = 0;
+
+		/*! \brief Pushes a buffer to the stream 
+		 *
+		 * \param buffer The buffer to push into the stream
+		 * \param buf_len The length of the buffer
+		 * \returns The number of bytes pushed. If all bytes are accepted or whitespace, then the method should return the same value as buf_len. If a value is rejected, then the method will return the number of bytes successfully pushed. 
+		 */
 		inline size_t read(const char *buffer, const size_t buf_len)
 		{
 			for(size_t i = 0; i < buf_len; i++)
 				if(this->push(buffer[i]) == REJECTED) return i;
 			return buf_len;
 		}
+
+		/*! \brief Pushes a string to the stream */
 		inline size_t read(const std::string &input)
 		{
 			return this->read(input.c_str(), input.length());
 		}
 	};
 
+	/*! \brief Class for parsing JSON data via a stream */
 	class data_parser : virtual public jistream
 	{
 	public:
+		/*! \brief Default constructor */
 		data_parser();
+
+		/*! \brief Destructor */
 		virtual ~data_parser();
+
+		/*! \brief Translate the stream into JSON data */
 		virtual data_reference emit() const = 0;
 	};
 
+	/*! \brief Class for handling JSON arrays */
 	class jarray : public std::vector<json::dynamic_data>
 	{
 	public:
+		/*! \brief Default constructor */
 		inline jarray() : std::vector<json::dynamic_data>() { }
 
 		inline jtype::jtype type() const { return jtype::jarray; }
@@ -295,12 +351,30 @@ namespace json
 			}
 		}
 
+		/*! \brief Parses a null-terminated JSON array */
 		static jarray parse(const char *input);
+
+		/*! \brief Parses a JSON array */
 		static inline jarray parse(const std::string &input) { return jarray::parse(input.c_str()); }
+
+		/*! \brief Serializes the JSON array into a string */
 		std::string as_string() const;
+
+		/*! \brief Alias of ::as_string() */
 		virtual inline std::string serialize() const { return this->as_string(); }
+
+		/*! \brief Casts the JSON array as a string 
+		 * \see ::as_string()
+		 */
 		inline operator std::string() const { return this->as_string(); }
+
+		/*! \brief Converts the JSON array into a formated string 
+		 *
+		 * \param indent_level The starting number of indents to use
+		 */
 		std::string pretty(unsigned int indent_level = 0) const;
+
+		/*! \brief Casts the JSON array into a vector of strings */
 		inline operator std::vector<std::string>() const
 		{
 			std::vector<std::string> result;
@@ -311,6 +385,7 @@ namespace json
 			return result;
 		}
 
+		/*! \brief Tempalate for casting the JSON array into a vector of values */
 		template<typename T>
 		operator std::vector<T>() const
 		{
@@ -322,17 +397,31 @@ namespace json
 			return result;
 		}
 
+		/*! \brief Class for streaming JSON arrays 
+		 *
+		 * This class is useful for applications where it is not desirable to load the entire JSON array in memory. 
+		 * An example use case is an embedded application that does not have sufficent memory to parse a large JSON array. 
+		 * In this case, the istream can "listen" for data and action the data when it is parsed without having to load the entire JSON array. 
+		 * 
+		 * \example jarray_istream.cpp
+	 	 * This is a basic of example of using a JSON array stream
+		 */
 		class istream : virtual public jistream
 		{
 		public:
-			virtual inline jtype::jtype type() const { return json::jtype::jarray; }
+			/*! \brief Default constructor */
 			istream();
+
+			/*! \brief Destructor */
 			virtual inline ~istream() { }
+
+			virtual inline jtype::jtype type() const { return json::jtype::jarray; }
 			virtual push_result push(const char next);
 			virtual bool is_valid() const;
 			virtual void reset();
 			inline size_t bytes_accepted() const { return this->__bytes_accepted; }
 		protected:
+			/*! \brief Callback for when an array is opened */
 			virtual void on_array_opened() = 0;
 
 			/*! \brief Callback for value read 
@@ -374,11 +463,20 @@ namespace json
 			size_t __bytes_accepted;
 		};
 
+		/*! \brief Class for parsing JSON arrays 
+		 * 
+		 * \example jarray_parser.cpp
+	 	 * This is a basic of example of using a JSON arry parser
+		 */
 		class parser : public data_parser
 		{
 		public:
+			/*! \brief Default constructor */
 			parser();
+
+			/*! \brief Destructor */
 			virtual ~parser();
+
 			virtual inline jtype::jtype type() const { return json::jtype::jarray; }
 			virtual inline push_result push(const char next) { return this->__handler->push(next); }
 			virtual inline bool is_valid() const { return this->__handler->is_valid(); }
@@ -393,33 +491,51 @@ namespace json
 		};
 	};
 
+	/*! \brief Class for representing and manipulating data contained within a JSON object 
+	 *
+	 * \warning Destructing the underlying \ref jobject befure the proxy is destructed will result in undefined behavior 
+	 */
 	class proxy : public dynamic_data
 	{
 	public:
+		/*! \brief Default constructor */
 		proxy();
+
+		/*! \brief Copy constructor */
 		proxy(const proxy &other);
+
+		/*! \brief Creates a proxy
+		 * 
+		 * \param parent The parent JSON object
+		 * \param key The key for the data to be referenced
+		 */
 		proxy(jobject &parent, const std::string key);
-		proxy(jobject &parent, const char *string);
+
+		/*! \brief Creates a proxy
+		 * 
+		 * \param parent The parent JSON object
+		 * \param key The key for the data to be referenced
+		 */
+		proxy(jobject &parent, const char *key);
+
+		/*! \brief Copy assignment */
 		proxy& operator=(const proxy &other);
+
 		proxy& operator=(const jarray &other);
 		proxy& operator=(const jobject &other);
+
+		/*! \brief Assigns a new value 
+		 *
+		 * \note This method will manipulate the parent JSON object
+		 */
 		template<typename T>
 		proxy& operator=(const T value) { dynamic_data::operator=(value); return *this;}
-		template<typename T>
-		proxy& operator=(const std::vector<T> value)
-		{
-			jarray result;
-			result = value;
-			dynamic_data::operator=(result);
-			return *this;
-		}
 	protected:
 		jobject *__parent;
 		std::string __key;
 		virtual void on_reassignment();
 	};
 
-	typedef std::pair<std::string, json::data_reference> kvp;
 	typedef std::map<std::string, json::data_reference> jmap;
 
 	/*! \class jobject
@@ -565,6 +681,15 @@ namespace json
 		 */
 		std::string pretty(unsigned int indent_level = 0) const;
 
+		/*! \brief Class for streaming JSON objects 
+		 *
+		 * This class is useful for applications where it is not desirable to load the entire JSON object in memory. 
+		 * An example use case is an embedded application that does not have sufficent memory to parse a large JSON object. 
+		 * In this case, the istream can "listen" for certain keys and action the data when it is parsed without having to load the entire JSON object. 
+		 * 
+		 * \example jobject_istream.cpp
+	 	 * This is a basic of example of using a JSON object stream
+		 */
 		class istream : virtual public jistream
 		{
 		public:
@@ -634,10 +759,17 @@ namespace json
 			size_t __bytes_accepted;
 		};
 
+		/*! \brief Class for parsing JSON objects 
+		 * \example jobject_parser.cpp
+	 	 * This is a basic of example of using a JSON object parser
+		 */
 		class parser : public data_parser
 		{
 		public:
+			/*! \brief Default constructor */
 			parser();
+
+			/*! \brief Destructor */
 			virtual ~parser();
 			virtual inline jtype::jtype type() const { return json::jtype::jobject; }
 			virtual inline push_result push(const char next) { return this->__handler->push(next); }

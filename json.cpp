@@ -37,6 +37,8 @@ const char * DOUBLE_FORMAT = "%lf";
 
 namespace json
 {
+    typedef std::pair<std::string, json::data_reference> kvp;
+    
     /*! \brief Namespace used for JSON parsing functions */
 	namespace parsing
 	{
