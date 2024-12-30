@@ -42,8 +42,14 @@ const char * UINT_FORMAT = "%u";
 /*! \brief Format used for long integer to string conversion */
 const char * LONG_FORMAT = "%li";
 
+/*! \brief Format used for long long integer to string conversion */
+const char * LONG_LONG_FORMAT = "%lli";
+
 /*! \brief Format used for unsigned long integer to string conversion */
 const char * ULONG_FORMAT = "%lu";
+
+/*! \brief Format used for unsigned long integer to string conversion */
+const char * ULONG_LONG_FORMAT = "%llu";
 
 /*! \brief Format used for character to string conversion */
 const char * CHAR_FORMAT = "%c";
@@ -735,7 +741,6 @@ std::string json::parsing::encode_string(const char *input)
         {
         case '"':
         case '\\':
-        case '/':
             result += "\\";
             result += *input;
             break;
@@ -830,7 +835,9 @@ std::vector<std::string> json::parsing::parse_array(const char *input)
 json::jobject::entry::operator int() const { return this->get_number<int>(INT_FORMAT); }
 json::jobject::entry::operator unsigned int() const { return this->get_number<unsigned int>(UINT_FORMAT); }
 json::jobject::entry::operator long() const { return this->get_number<long>(LONG_FORMAT); }
+json::jobject::entry::operator long long() const { return this->get_number<long long>(LONG_LONG_FORMAT); }
 json::jobject::entry::operator unsigned long() const { return this->get_number<unsigned long>(ULONG_FORMAT); }
+json::jobject::entry::operator unsigned long long() const { return this->get_number<unsigned long long>(ULONG_LONG_FORMAT); }
 json::jobject::entry::operator char() const { return this->get_number<char>(CHAR_FORMAT); }
 json::jobject::entry::operator float() const { return this->get_number<float>(FLOAT_FORMAT); }
 json::jobject::entry::operator double() const { return this->get_number<double>(DOUBLE_FORMAT); }

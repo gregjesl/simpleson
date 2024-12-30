@@ -667,11 +667,17 @@ namespace json
 			/*! \brief Casts the value as an unsigned integer */
 			operator unsigned int() const;
 
-			/*! \brief Casts teh value as a long integer */
+			/*! \brief Casts the value as a long integer */
 			operator long() const;
+
+			/*! \brief Casts the value as a long long integer */
+			operator long long() const;
 
 			/*! \brief Casts the value as an unsigned long integer */
 			operator unsigned long() const;
+
+			/*! \brief Casts the value as an unsigned long long integer */
+			operator unsigned long long() const;
 
 			/*! \brief Casts teh value as a char */
 			operator char() const;
@@ -965,8 +971,14 @@ namespace json
 			/*! \brief Assigns a long integer */
 			void operator=(const long input) { this->set_number(input, "%li"); }
 
+			/*! \brief Assigns a long long integer */
+			void operator=(const long long input) { this->set_number(input, "%lli"); }
+
 			/*! \brief Assigns a long unsigned integer */
 			void operator=(const unsigned long input) { this->set_number(input, "%lu"); }
+
+			/*! \brief Assigns a unsigned long long  integer */
+			void operator=(const unsigned long long input) { this->set_number(input, "%llu"); }
 
 			/*! \brief Assigns an character */
 			void operator=(const char input) { this->set_number(input, "%c"); }
