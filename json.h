@@ -512,7 +512,7 @@ namespace json
 		 *
 		 * @see json::jobject::parse(const char*)
 		 */
-		static inline jobject parse(const std::string input) { return parse(input.c_str()); }
+		static inline jobject parse(const std::string& input) { return parse(input.c_str()); }
 
 		/*! /brief Attempts to parse the input string
 		 * 
@@ -656,10 +656,10 @@ namespace json
 			}
 
 			/*! \brief Comparison operator */
-			bool operator== (const std::string other) const { return ((std::string)(*this)) == other; }
+			bool operator== (const std::string& other) const { return ((std::string)(*this)) == other; }
 
 			/*! \brief Comparison operator */
-			bool operator!= (const std::string other) const { return !(((std::string)(*this)) == other); }
+			bool operator!= (const std::string& other) const { return !(((std::string)(*this)) == other); }
 
 			/*! \brief Casts the value as an integer */
 			operator int() const;
@@ -809,7 +809,7 @@ namespace json
 			 *
 			 * @param value The entry value to copy
 			 */
-			inline const_value(std::string value)
+			inline const_value(const std::string& value)
 			: data(value)
 			{ }
 
@@ -945,7 +945,7 @@ namespace json
 			{ }
 
 			/*! \brief Assigns a string value */
-			inline void operator= (const std::string value)
+			inline void operator= (const std::string& value)
 			{
 				this->sink.set(this->key, json::parsing::encode_string(value.c_str()));
 			}
