@@ -390,15 +390,11 @@ json::reader::push_result json::reader::push_object(const char next)
         if(std::isspace(next)) return WHITESPACE;
         if(next != '"') return REJECTED;
         this->sub_reader = new kvp_reader();
-        #if DEBUG
-        assert(
-        #endif
-        this->sub_reader->push(next)
-        #if DEBUG
-        == ACCEPTED);
-        #else
-        ;
-        #endif
+#if DEBUG
+		assert(this->sub_reader->push(next) == ACCEPTED);
+#else
+		this->sub_reader->push(next);
+#endif
         this->set_state(OBJECT_READING_ENTRY);
         return ACCEPTED;
     case OBJECT_READING_ENTRY:

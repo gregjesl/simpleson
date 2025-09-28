@@ -12,10 +12,46 @@
 #include <utility>
 #include <stdexcept>
 #include <cctype>
+#if defined(WINCE)
+#  include <cstdarg>
+#endif
 
 /*! \brief Base namespace for simpleson */
 namespace json
 {
+	namespace detail
+	{
+#if defined(WINCE)
+		inline int snprintf(char* buffer, size_t size, const char* format, ...)
+		{
+			int result = -1;
+			va_list args;
+			va_start(args, format);
+
+			if (buffer == NULL || size == 0) {
+				result = _vscprintf(format, args);
+				va_end(args);
+				return result;
+			}
+
+			result = _vsnprintf(buffer, size, format, args);
+			va_end(args);
+
+			buffer[size - 1] = '\0';
+
+			if (result < 0) {
+				va_start(args, format);
+				result = _vscprintf(format, args);
+				va_end(args);
+			}
+
+			return result;
+		}
+#else
+		using std::snprintf;
+#endif
+	}
+
 	/*! \brief Exception used for invalid JSON keys */
 	class invalid_key : public std::exception
 	{
@@ -102,7 +138,7 @@ namespace json
 		/*! \brief Length field exposed */
 		using std::string::length;
 
-		#if __GNUC__ && __GNUC__ < 11
+		#if (__GNUC__ && __GNUC__ < 11) || defined(WINCE)
 		inline char front() const { return this->at(0); }
 		inline char back() const { return this->at(this->length() - 1); }
 		#else
@@ -374,12 +410,12 @@ namespace json
 		std::string get_number_string(const T &number, const char *format)
 		{
 			std::vector<char> cstr(6);
-			int remainder = std::snprintf(&cstr[0], cstr.size(), format, number);
+			int remainder = detail::snprintf(&cstr[0], cstr.size(), format, number);
 			if(remainder < 0) {
 				return std::string();
 			} else if(remainder >= (int)cstr.size()) {
 				cstr.resize(remainder + 1);
-				std::snprintf(&cstr[0], cstr.size(), format, number);
+				detail::snprintf(&cstr[0], cstr.size(), format, number);
 			}
 			std::string result(&cstr[0]);
 			return result;
