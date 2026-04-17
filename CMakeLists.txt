@@ -1,4 +1,4 @@
-﻿# For integration in a ESP project
+# For integration in a ESP project
 # See https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/build-system.html#using-third-party-cmake-projects-with-components
 if (ESP_PLATFORM)
 
@@ -33,6 +33,10 @@ else()
 
     enable_testing()
     add_subdirectory (test)
+    option(SIMPLESON_BUILD_BASELINE_BENCHMARKS "Build baseline benchmark targets" ON)
+    if(SIMPLESON_BUILD_BASELINE_BENCHMARKS)
+        add_subdirectory (baseline_benchmark_test)
+    endif()
     add_subdirectory (examples)
     add_subdirectory (issues)
 
