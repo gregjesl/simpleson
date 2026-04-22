@@ -12,6 +12,7 @@
 #include <utility>
 #include <stdexcept>
 #include <cctype>
+#include <map>
 
 /*! \brief Base namespace for simpleson */
 namespace json
@@ -102,7 +103,7 @@ namespace json
 		/*! \brief Length field exposed */
 		using std::string::length;
 
-		#if __GNUC__ && __GNUC__ < 11
+		#if __cplusplus < 201103L || (__GNUC__ && __GNUC__ < 11)
 		inline char front() const { return this->at(0); }
 		inline char back() const { return this->at(this->length() - 1); }
 		#else
@@ -461,7 +462,7 @@ namespace json
 		bool operator!= (const json::jobject other) const { return ((std::string)(*this)) != (std::string)other; }
 
 		/*! \brief Assignment operator */
-		inline jobject& operator=(const jobject rhs)
+		inline jobject& operator=(const jobject& rhs)
 		{
 			this->array_flag = rhs.array_flag;
 			this->data = rhs.data;
@@ -598,6 +599,18 @@ namespace json
 		void remove(const size_t index)
 		{
 			this->data.erase(this->data.begin() + index);
+		}
+
+		/*! \brief Returns key/value pairs as a map<string, string>
+		 */
+		inline std::map<std::string, std::string> to_map() const
+		{
+			std::map<std::string, std::string> map;
+			std::vector<json::kvp> kvps = this->data;
+			for (std::vector<json::kvp>::const_iterator it = kvps.begin(); it != kvps.end(); ++it) {
+				map[it->first] = json::parsing::decode_string(it->second.c_str());
+			}
+			return map;
 		}
 
 		/*! \brief Representation of a value in the object */
@@ -847,6 +860,7 @@ namespace json
 		private:
 			/*! \brief The source object the value is referencing */
 			const jobject &source;
+			mutable std::string value;
 
 		protected:
 			/*! \brief The key for the referenced value */
@@ -855,8 +869,8 @@ namespace json
 			/*! \brief Returns a reference to the value */
 			inline const std::string& ref() const 
 			{
-				for (size_t i = 0; i < this->source.size(); i++) if (this->source.data.at(i).first == key) return this->source.data.at(i).second;
-				throw json::invalid_key(key);
+				value = this->source.get(this->key);
+				return value;
 			}
 
 		public:
@@ -867,7 +881,7 @@ namespace json
 			 */
 			const_proxy(const jobject &source, const std::string key) : source(source), key(key) 
 			{ 
-				if(source.array_flag) throw std::logic_error("Source cannot be an array");
+				if(source.is_array()) throw std::logic_error("Source cannot be an array");
 			}
 
 			/*! \brief Returns another constant value from this array

@@ -872,7 +872,6 @@ json::jobject json::jobject::parse(const char *input)
         break;
     default:
         throw json::parsing_error(error);
-        break;
     }
     index++;
     SKIP_WHITE_SPACE(index);
